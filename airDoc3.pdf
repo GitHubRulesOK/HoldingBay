@@ -10,21 +10,14 @@ endobj
 endobj
 
 3 0 obj
-<</Contents 4 0 R/MediaBox[0 0 128 128]/Parent 2 0 R/Resources<</ExtGState<</GS0 5 0 R>>>>/Type/Page>>
+<</Contents 4 0 R/MediaBox[0 0 128 128]/Parent 2 0 R/Resources<<>>/Type/Page>>
 endobj
 
 4 0 obj
-<</Length 1575>>
+<</Length 1515>>
 stream
 q
-/GS0 gs
-.579593 -.730638 .769147 .550575 -378.15837 436.3535 cm
-0 500 750 -500 re
-q
- 
-1 0 0 rg
-0 0 0 RG
-1 0 0 1 663.6858 157.33506 cm
+.579593 -.730638 .769147 .550575 127.52306 38.064188 cm
 0 0 m
 -.534 .28 -27.73 -7.369 -49.452 -13.547 c
 -50.7 -12.6 -51.742 -11.809 y
@@ -73,6 +66,8 @@ q
 -11.678 -23.589 -12.941 -22.072 -14.89 -20.494 c
 3.413 -10.275 l
 .89 -.468 0 0 v
+1 0 0 rg
+0 0 0 RG
 B
 Q
 q
@@ -81,21 +76,16 @@ Q
 endstream
 endobj
 
-5 0 obj
-<</AIS false/BM/Normal/ca 1/CA 1/OP false/op false/OPM 1/SA true/SMask/None/Type/ExtGState>>
-endobj
-
 xref
-0 6
+0 5
 0000000000 65536 f 
 0000000016 00000 n 
 0000000062 00000 n 
 0000000114 00000 n 
-0000000233 00000 n 
-0000001859 00000 n 
+0000000209 00000 n 
 
 trailer
-<</Size 6/Root 1 0 R/ID[<EB0E56C19C6CB2C2A6EDE60D418BBE2A><7E909AE1E0C2F9FECA84D88B1B2C7AB6>]>>
+<</Size 5/Root 1 0 R/ID[<EB0E56C19C6CB2C2A6EDE60D418BBE2A><862F17E3F1C9BEA96372645EBC824E30>]>>
 startxref
-1968
+1775
 %%EOF
