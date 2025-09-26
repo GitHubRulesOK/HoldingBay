@@ -629,27 +629,33 @@ private void HighlightAllMatches(string query)
 
     while (startIndex < editor.TextLength)
     {
-      int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
-      bool overlapsPermanent = false;
-      for (int i = index; i < index + query.Length; i++)
-      {
-        if (IsInPermanentHighlight(i))
+        int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
+        if (index < 0) break;
+
+        bool overlapsPermanent = false;
+        for (int i = index; i < index + query.Length; i++)
         {
-          overlapsPermanent = true;
-          break;
+            if (IsInPermanentHighlight(i))
+            {
+                overlapsPermanent = true;
+                break;
+            }
         }
-      }
-      if (!overlapsPermanent)
-      {
-        editor.Select(index, query.Length);
-        editor.SelectionBackColor = Color.Yellow;
-      }
-      startIndex = index + query.Length;
-      matchCount++;
+
+        if (!overlapsPermanent)
+        {
+            editor.Select(index, query.Length);
+            editor.SelectionBackColor = Color.Yellow;
+        }
+
+        startIndex = index + query.Length;
+        matchCount++;
     }
+
     editor.DeselectAll();
     matchCountLabel.Text = string.Format("Matches: {0}", matchCount);
 }
+
 
   private void ClearTemporaryHighlights()
   {
@@ -699,5 +705,6 @@ private void HighlightAllMatches(string query)
   }
 
 }
+
 
 
