@@ -630,8 +630,16 @@ private void HighlightAllMatches(string query)
     while (startIndex < editor.TextLength)
     {
       int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
-      if (index < 0) break;
-      if (!IsInPermanentHighlight(index))
+      bool overlapsPermanent = false;
+      for (int i = index; i < index + query.Length; i++)
+      {
+        if (IsInPermanentHighlight(i))
+        {
+          overlapsPermanent = true;
+          break;
+        }
+      }
+      if (!overlapsPermanent)
       {
         editor.Select(index, query.Length);
         editor.SelectionBackColor = Color.Yellow;
@@ -691,4 +699,5 @@ private void HighlightAllMatches(string query)
   }
 
 }
+
 
