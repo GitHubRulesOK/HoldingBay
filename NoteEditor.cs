@@ -92,20 +92,6 @@ foreach (ToolStripItem item in toolStripBottom.Items)
     this.Controls.Add(toolStripBottom); // Bottom 2nd so pushes editor down
     this.Controls.Add(toolStripTop); // Top 3rd so pushes both down
 
-
-    // Assign keyboard shortcuts
-    editor.KeyDown += (s, e) =>
-    {
-        if (e.Control && e.KeyCode == Keys.Z) editor.Undo();
-        if (e.Control && e.KeyCode == Keys.Y) editor.Redo();
-    };
-
-    // Add buttons and separators to toolStripTop and toolStripBottom
-    // Example:🌞 / 🌜
-    // toolStripTop.Items.Add(openButton);
-    // toolStripBottom.Items.Add(findBox);
-    // toolStripBottom.Items.Add(findButton);
-
     editor.KeyDown += (s, e) =>
     {
         if (e.Control && e.KeyCode == Keys.Z) editor.Undo();
@@ -280,6 +266,12 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
             MessageBox.Show("Text not found.");
         }
     };
+
+    // Add buttons and separators to toolStripTop and toolStripBottom
+    // Example:🌞 / 🌜
+    // toolStripTop.Items.Add(openButton);
+    // toolStripBottom.Items.Add(findBox);
+    // toolStripBottom.Items.Add(findButton);
 
     toolStripTop.Items.Add(openButton);
     toolStripTop.Items.Add(saveButton);
