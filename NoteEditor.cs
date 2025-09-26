@@ -11,8 +11,8 @@ public class NoteEditor : UserControl
   private RichTextBox editor;
   private ToolStrip toolStripTop; private ToolStrip toolStripBottom;
   private ToolStripButton openButton, saveButton, exportHtmlButton, exportMdButton, imageButton;
-  private ToolStripButton fontButton, colorButton, boldButton, italicButton, underlineButton, highlightButton;
-  private ToolStripButton undoButton, redoButton, findButton, findNextButton, replaceButton, replaceAllButton;
+  private ToolStripButton fontButton, colorButton, boldButton, italicButton, underlineButton, highlightMarkButton;
+  private ToolStripButton undoButton, redoButton, findButton, findNextButton, replaceButton, replaceAllButton, highlightFindButton;
   private ToolStripTextBox findBox;
   private ToolStripLabel matchCountLabel;
   private int lastSearchIndex = 0;
@@ -132,65 +132,15 @@ foreach (ToolStripItem item in toolStripBottom.Items)
     editor.ContextMenuStrip = menu;
 
     openButton = new ToolStripButton("📂");
-    saveButton = new ToolStripButton("💾");
-    fontButton = new ToolStripButton("A");
-    colorButton = new ToolStripButton("🎨");
-    boldButton = new ToolStripButton("B");
-    italicButton = new ToolStripButton("I");
-    underlineButton = new ToolStripButton("U");
-    highlightButton = new ToolStripButton("🖍");
-    imageButton = new ToolStripButton("📷");
-    undoButton = new ToolStripButton("↺");
-    redoButton = new ToolStripButton("↻");
-    exportHtmlButton = new ToolStripButton("🌐");
-    exportMdButton = new ToolStripButton("📝");
-
-findBox = new ToolStripTextBox();
-findBox.ToolTipText = "Text to find";
-
-findButton = new ToolStripButton("🔍");
-findButton.ToolTipText = "Find";
-
-findNextButton = new ToolStripButton("▶");
-findNextButton.ToolTipText = "Next";
-
-replaceButton = new ToolStripButton("🔄");
-replaceButton.ToolTipText = "Replace";
-
-replaceAllButton = new ToolStripButton("🔄All");
-replaceAllButton.ToolTipText = "ReplaceAll";
-
-findButton.Click += (s, e) => FindText();
-findNextButton.Click += (s, e) => FindNext();
-replaceButton.Click += (s, e) => ReplaceCurrent();
-replaceAllButton.Click += (s, e) => ReplaceAll();
-
-highlightButton = new ToolStripButton("🖍");
-highlightButton.ToolTipText = "Highlight all matches";
-highlightButton.Click += (s, e) => HighlightAllMatches(findBox.Text);
-findBox.TextChanged += (s, e) => HighlightAllMatches(findBox.Text);
-
-matchCountLabel = new ToolStripLabel("Matches: 0");
-
     openButton.ToolTipText = "Open note file";
+    openButton.Click += (s, e) => OpenNote();
+
+    saveButton = new ToolStripButton("💾");
     saveButton.ToolTipText = "Save note file";
+    saveButton.Click += (s, e) => SaveNote();
+
+    fontButton = new ToolStripButton("A");
     fontButton.ToolTipText = "Change Font";
-    colorButton.ToolTipText = "Change Colour";
-    boldButton.ToolTipText = "Bold";
-    italicButton.ToolTipText = "Italic";
-    underlineButton.ToolTipText = "Underline";
-    highlightButton.ToolTipText = "Highlight text";
-    imageButton.ToolTipText = "Paste image from clipboard";
-    undoButton.ToolTipText = "Undo";
-    redoButton.ToolTipText = "Redo";
-    exportHtmlButton.ToolTipText = "Export as HTML";
-    exportMdButton.ToolTipText = "Export as Markdown";
-
-    undoButton.Click += (s, e) => editor.Undo();
-    redoButton.Click += (s, e) => editor.Redo();
-
-    editor.SelectionChanged += (s, e) => UpdateFontPicker();
-
     fontButton.Click += (s, e) =>
     {
         FontDialog fontDialog = new FontDialog();
@@ -212,6 +162,8 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
         }
     };
 
+    colorButton = new ToolStripButton("🎨");
+    colorButton.ToolTipText = "Change Colour";
     colorButton.Click += (s, e) =>
     {
         ColorDialog colorDialog = new ColorDialog();
@@ -219,23 +171,21 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
             editor.SelectionColor = colorDialog.Color;
     };
 
+    boldButton = new ToolStripButton("B");
+    boldButton.ToolTipText = "Bold";
     boldButton.Click += (s, e) => ToggleStyle(FontStyle.Bold);
+
+    italicButton = new ToolStripButton("I");
+    italicButton.ToolTipText = "Italic";
     italicButton.Click += (s, e) => ToggleStyle(FontStyle.Italic);
+
+    underlineButton = new ToolStripButton("U");
+    underlineButton.ToolTipText = "Underline";
     underlineButton.Click += (s, e) => ToggleStyle(FontStyle.Underline);
-    imageButton.Click += (s, e) =>
-    {
-      if (Clipboard.ContainsImage())
-        editor.Paste();
-      else
-        MessageBox.Show("Clipboard does not contain an image.");
-    };
 
-    openButton.Click += (s, e) => OpenNote();
-    saveButton.Click += (s, e) => SaveNote();
-    exportHtmlButton.Click += (s, e) => ExportAsStyledHtml();
-    exportMdButton.Click += (s, e) => ExportAsStyledMarkdown();
-
-    highlightButton.Click += (s, e) =>
+    highlightMarkButton = new ToolStripButton("🖍");
+    highlightMarkButton.ToolTipText = "Highlight Selected Text";
+    highlightMarkButton.Click += (s, e) =>
     {
         if (editor.SelectionLength > 0)
         {
@@ -251,6 +201,38 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
         }
     };
 
+    imageButton = new ToolStripButton("📷");
+    imageButton.ToolTipText = "Paste image from clipboard";
+    imageButton.Click += (s, e) =>
+    {
+      if (Clipboard.ContainsImage())
+        editor.Paste();
+      else
+        MessageBox.Show("Clipboard does not contain an image.");
+    };
+
+    undoButton = new ToolStripButton("↺");
+    undoButton.ToolTipText = "Undo";
+    undoButton.Click += (s, e) => editor.Undo();
+
+    redoButton = new ToolStripButton("↻");
+    redoButton.ToolTipText = "Redo";
+    redoButton.Click += (s, e) => editor.Redo();
+
+    exportHtmlButton = new ToolStripButton("🌐");
+    exportHtmlButton.ToolTipText = "Export as HTML";
+    exportHtmlButton.Click += (s, e) => ExportAsStyledHtml();
+
+    exportMdButton = new ToolStripButton("📝");
+    exportMdButton.ToolTipText = "Export as Markdown";
+    exportMdButton.Click += (s, e) => ExportAsStyledMarkdown();
+
+    findBox = new ToolStripTextBox();
+    findBox.ToolTipText = "Text to find";
+    findBox.TextChanged += (s, e) => HighlightAllMatches(findBox.Text);
+
+    findButton = new ToolStripButton("🔍");
+    findButton.ToolTipText = "Find";
     findButton.Click += (s, e) =>
     {
         string query = findBox.Text;
@@ -267,6 +249,26 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
         }
     };
 
+findNextButton = new ToolStripButton("▶");
+findNextButton.ToolTipText = "Next";
+findNextButton.Click += (s, e) => FindNext();
+
+replaceButton = new ToolStripButton("🔄");
+replaceButton.ToolTipText = "Replace";
+replaceButton.Click += (s, e) => ReplaceCurrent();
+
+replaceAllButton = new ToolStripButton("🔄All");
+replaceAllButton.ToolTipText = "ReplaceAll";
+replaceAllButton.Click += (s, e) => ReplaceAll();
+
+highlightFindButton = new ToolStripButton("🖍");
+highlightFindButton.ToolTipText = "Highlight all matches";
+highlightFindButton.Click += (s, e) => HighlightAllMatches(findBox.Text);
+
+    matchCountLabel = new ToolStripLabel("Matches: 0");
+
+    editor.SelectionChanged += (s, e) => UpdateFontPicker();
+
     // Add buttons and separators to toolStripTop and toolStripBottom
     // Example:🌞 / 🌜
     // toolStripTop.Items.Add(openButton);
@@ -281,7 +283,7 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
     toolStripTop.Items.Add(boldButton);
     toolStripTop.Items.Add(italicButton);
     toolStripTop.Items.Add(underlineButton);
-    toolStripTop.Items.Add(highlightButton);
+    toolStripTop.Items.Add(highlightMarkButton);
     toolStripTop.Items.Add(new ToolStripSeparator());
     toolStripTop.Items.Add(imageButton);
     toolStripTop.Items.Add(new ToolStripSeparator());
@@ -291,21 +293,49 @@ matchCountLabel = new ToolStripLabel("Matches: 0");
     toolStripBottom.Items.Add(exportHtmlButton);
     toolStripBottom.Items.Add(exportMdButton);
     toolStripBottom.Items.Add(new ToolStripSeparator());
-toolStripBottom.Items.Add(findBox);
-toolStripBottom.Items.Add(findButton);
-toolStripBottom.Items.Add(findNextButton);
-toolStripBottom.Items.Add(replaceButton);
-toolStripBottom.Items.Add(replaceAllButton);
-toolStripBottom.Items.Add(new ToolStripSeparator());
-toolStripBottom.Items.Add(highlightButton);
-toolStripBottom.Items.Add(matchCountLabel);
-ToolStripButton clearHighlightsButton = new ToolStripButton("🧹");
-clearHighlightsButton.ToolTipText = "Clear Find Highlights";
-clearHighlightsButton.Click += (s, e) => ClearFindHighlights();
-toolStripBottom.Items.Add(clearHighlightsButton);
-toolStripBottom.Items.Add(new ToolStripSeparator());
+    toolStripBottom.Items.Add(findBox);
+    toolStripBottom.Items.Add(findButton);
+    toolStripBottom.Items.Add(findNextButton);
+    toolStripBottom.Items.Add(replaceButton);
+    toolStripBottom.Items.Add(replaceAllButton);
+    toolStripBottom.Items.Add(new ToolStripSeparator());
+    toolStripBottom.Items.Add(highlightFindButton);
+    toolStripBottom.Items.Add(matchCountLabel);
+    ToolStripButton clearHighlightsButton = new ToolStripButton("🧹");
+    clearHighlightsButton.ToolTipText = "Clear Find Highlights";
+    clearHighlightsButton.Click += (s, e) => ClearFindHighlights();
+    toolStripBottom.Items.Add(clearHighlightsButton);
+    toolStripBottom.Items.Add(new ToolStripSeparator());
 
   }
+
+private void ApplyPermanentHighlight()
+{
+    if (editor.SelectionLength == 0)
+    {
+        MessageBox.Show("Please select text to mark.");
+        return;
+    }
+
+    ColorDialog dialog = new ColorDialog();
+    if (dialog.ShowDialog() != DialogResult.OK) return;
+
+    int start = editor.SelectionStart;
+    int length = editor.SelectionLength;
+    Color chosenColor = dialog.Color;
+
+    editor.SelectionBackColor = chosenColor;
+
+    // Avoid duplicate or overlapping highlights
+    foreach (HighlightRange h in permanentHighlights)
+    {
+        if (start < h.Start + h.Length && h.Start < start + length)
+            return;
+    }
+
+    permanentHighlights.Add(new HighlightRange(start, length, chosenColor));
+    editor.SelectionLength = 0;
+}
 
   private void ReapplyPermanentHighlights()
   {
