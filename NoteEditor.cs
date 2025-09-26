@@ -22,9 +22,6 @@ public class NoteEditor : UserControl
   {
     this.Dock = DockStyle.Fill;
     this.BackColor = Color.White;
-int start = editor.SelectionStart;
-int length = editor.SelectionLength;
-Color chosenColor = Color.LightGreen; // or from a ColorDialog
 
     // Define editor UX
     editor = new RichTextBox();
@@ -32,6 +29,10 @@ Color chosenColor = Color.LightGreen; // or from a ColorDialog
     float baseSize = this.DeviceDpi > 96 ? 12f : 10f;
     editor.Font = new Font("Segoe UI", baseSize);
     editor.AllowDrop = true;
+    int start = editor.SelectionStart;
+    int length = editor.SelectionLength;
+    Color chosenColor = Color.LightGreen; // or from a ColorDialog
+
     editor.Select(start, length);
     editor.SelectionBackColor = chosenColor;
     bool overlaps = false;
@@ -68,15 +69,15 @@ Color chosenColor = Color.LightGreen; // or from a ColorDialog
     //toolStripBottom.AutoSize = false;
     //toolStripBottom.Height = (int)(toolbarFont.Size * 2.2f);
 
-int itemHeight = toolStripTop.Height - 0; // Slight padding
+    int itemHeight = toolStripTop.Height - 0; // Slight padding
 
-foreach (ToolStripItem item in toolStripTop.Items)
-{
-    item.Font = toolbarFont;
-    item.AutoSize = false;
-    item.Height = itemHeight;
-    item.Margin = new Padding(2); // Optional: add spacing
-}
+    foreach (ToolStripItem item in toolStripTop.Items)
+    {
+        item.Font = toolbarFont;
+        item.AutoSize = false;
+        item.Height = itemHeight;
+        item.Margin = new Padding(2); // Optional: add spacing
+    }
 
 foreach (ToolStripItem item in toolStripBottom.Items)
 {
@@ -631,8 +632,21 @@ private void HighlightAllMatches(string query)
   }
 
   public string GetContent()
-  { return editor.Rtf; }
+  {
+    return editor.Rtf;
+  }
 
   public void SetContent(string rtf)
-  { editor.Rtf = rtf; }
+  {
+    try
+    {
+        editor.Rtf = rtf;
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show("RTF load failed: " + ex.Message);
+        editor.Text = "Failed to load RTF.";
+    }
+  }
+
 }
