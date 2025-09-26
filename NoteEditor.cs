@@ -29,26 +29,7 @@ public class NoteEditor : UserControl
     float baseSize = this.DeviceDpi > 96 ? 12f : 10f;
     editor.Font = new Font("Segoe UI", baseSize);
     editor.AllowDrop = true;
-    int start = editor.SelectionStart;
-    int length = editor.SelectionLength;
-    Color chosenColor = Color.LightGreen; // or from a ColorDialog
-
-    editor.Select(start, length);
-    editor.SelectionBackColor = chosenColor;
-    bool overlaps = false;
-    foreach (HighlightRange h in permanentHighlights)
-    {
-      if (start < h.Start + h.Length && h.Start < start + length)
-      {
-        overlaps = true;
-        break;
-      }
-    }
-    if (!overlaps)
-    {
-      permanentHighlights.Add(new HighlightRange(start, length, chosenColor));
-    }
-
+    
     // Define toolbarS
     toolStripTop = new ToolStrip(); toolStripBottom = new ToolStrip();
     toolStripTop.Dock = DockStyle.Top; toolStripBottom.Dock = DockStyle.Top;
@@ -602,6 +583,43 @@ private void ClearFindHighlights() //place before private void HighlightAllMatch
     editor.DeselectAll();
 }
 
+private void ApplyPermanentHighlight()
+{
+    if (editor.SelectionLength == 0)
+    {
+        MessageBox.Show("Please select text to mark.");
+        return;
+    }
+
+    ColorDialog dialog = new ColorDialog();
+    if (dialog.ShowDialog() != DialogResult.OK) return;
+
+    int start = editor.SelectionStart;
+    int length = editor.SelectionLength;
+    Color chosenColor = dialog.Color;
+
+    editor.SelectionBackColor = chosenColor;
+
+    foreach (HighlightRange h in permanentHighlights)
+    {
+        if (start < h.Start + h.Length && h.Start < start + length)
+            return;
+    }
+
+    permanentHighlights.Add(new HighlightRange(start, length, chosenColor));
+    editor.SelectionLength = 0;
+}
+
+private bool IsInPermanentHighlight(int index)
+{
+    foreach (HighlightRange range in permanentHighlights)
+    {
+        if (index >= range.Start && index < range.Start + range.Length)
+            return true;
+    }
+    return false;
+}
+
 private void HighlightAllMatches(string query)
 {
     ClearTemporaryHighlights();
@@ -611,15 +629,16 @@ private void HighlightAllMatches(string query)
 
     while (startIndex < editor.TextLength)
     {
-        int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
-        if (index < 0) break;
-
+      int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
+      if (index < 0) break;
+      if (!IsInPermanentHighlight(index))
+      {
         editor.Select(index, query.Length);
         editor.SelectionBackColor = Color.Yellow;
-        startIndex = index + query.Length;
-        matchCount++;
+      }
+      startIndex = index + query.Length;
+      matchCount++;
     }
-
     editor.DeselectAll();
     matchCountLabel.Text = string.Format("Matches: {0}", matchCount);
 }
@@ -672,3 +691,4 @@ private void HighlightAllMatches(string query)
   }
 
 }
+
