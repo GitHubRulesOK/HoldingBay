@@ -589,34 +589,37 @@ private void HighlightAllMatches(string query)
     matchCountLabel.Text = string.Format("Matches: {0}", matchCount);
 }
 
-  private void ClearTemporaryHighlights()
-  {
+private void ClearTemporaryHighlights()
+{
+    // Remove yellow highlights
     for (int i = 0; i < editor.TextLength; i++)
     {
         editor.Select(i, 1);
         if (editor.SelectionBackColor == Color.Yellow)
         {
-            // Check if this character is part of a permanent highlight
-            if (!IsInPermanentHighlight(i))
-                editor.SelectionBackColor = Color.White;
+            editor.SelectionBackColor = Color.White;
         }
     }
+
+    // Restore original colors for previously yellowed characters
     foreach (var kvp in originalColors)
     {
-      int i = kvp.Key;
-      editor.Select(i, 1);
-      if (editor.SelectionBackColor == Color.Yellow)
-          editor.SelectionBackColor = kvp.Value;
+        int i = kvp.Key;
+        editor.Select(i, 1);
+        if (editor.SelectionBackColor == Color.White)
+            editor.SelectionBackColor = kvp.Value;
     }
     originalColors.Clear();
+
     // Reapply permanent highlights
     foreach (HighlightRange range in permanentHighlights)
     {
-      editor.Select(range.Start, range.Length);
-      editor.SelectionBackColor = range.Color;
+        editor.Select(range.Start, range.Length);
+        editor.SelectionBackColor = range.Color;
     }
+
     editor.DeselectAll();
-  }
+}
 
   public class HighlightRange
   {
@@ -647,5 +650,6 @@ private void HighlightAllMatches(string query)
     }
   }
 }
+
 
 
