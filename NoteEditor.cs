@@ -678,7 +678,3 @@ private void HighlightAllMatches(string query)
   }
 
 }
-
-
-
-
