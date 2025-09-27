@@ -532,15 +532,7 @@ private string Prompt(string title, string defaultValue)
 
 private void ClearFindHighlights() //place before private void HighlightAllMatches
 {
-    int startIndex = 0;
-    while (startIndex < editor.TextLength)
-    {
-        editor.Select(startIndex, 1);
-        if (editor.SelectionBackColor == Color.LightYellow)
-            editor.SelectionBackColor = Color.White;
-        startIndex++;
-    }
-    editor.DeselectAll();
+    ClearTemporaryHighlights();
 }
 
 private bool IsInPermanentHighlight(int index)
@@ -650,6 +642,3 @@ private void ClearTemporaryHighlights()
     }
   }
 }
-
-
-
