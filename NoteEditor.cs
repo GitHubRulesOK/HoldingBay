@@ -17,6 +17,7 @@ public class NoteEditor : UserControl
   private ToolStripLabel matchCountLabel;
   private int lastSearchIndex = 0;
   private List<HighlightRange> permanentHighlights = new List<HighlightRange>();
+  private Dictionary<int, Color> originalColors = new Dictionary<int, Color>();
 
   public NoteEditor() // Constructor
   {
@@ -573,8 +574,13 @@ private void HighlightAllMatches(string query)
         }
         if (!overlapsPermanent)
         {
-            editor.Select(index, query.Length);
+          for (int i = index; i < index + query.Length; i++)
+          {
+            editor.Select(i, 1);
+            if (!originalColors.ContainsKey(i))
+              originalColors[i] = editor.SelectionBackColor;
             editor.SelectionBackColor = Color.Yellow;
+          }
         }
         startIndex = index + query.Length;
         matchCount++;
@@ -595,6 +601,14 @@ private void HighlightAllMatches(string query)
                 editor.SelectionBackColor = Color.White;
         }
     }
+    foreach (var kvp in originalColors)
+    {
+      int i = kvp.Key;
+      editor.Select(i, 1);
+      if (editor.SelectionBackColor == Color.Yellow)
+          editor.SelectionBackColor = kvp.Value;
+    }
+    originalColors.Clear();
     // Reapply permanent highlights
     foreach (HighlightRange range in permanentHighlights)
     {
@@ -633,4 +647,5 @@ private void HighlightAllMatches(string query)
     }
   }
 }
+
 
