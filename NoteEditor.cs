@@ -42,14 +42,6 @@ public class NoteEditor : UserControl
     catch (Exception ex)
     { MessageBox.Show("Font error: " + ex.Message);}
     toolStripBottom.Font = toolbarFont;
-
-
-    // Manually set height to accommodate larger font
-    //toolStripTop.AutoSize = false;
-    //toolStripTop.Height = (int)(toolbarFont.Size * 2.2f);
-    //toolStripBottom.AutoSize = false;
-    //toolStripBottom.Height = (int)(toolbarFont.Size * 2.2f);
-
     int itemHeight = toolStripTop.Height - 0; // Slight padding
 
     foreach (ToolStripItem item in toolStripTop.Items)
@@ -60,13 +52,14 @@ public class NoteEditor : UserControl
         item.Margin = new Padding(2); // Optional: add spacing
     }
 
-foreach (ToolStripItem item in toolStripBottom.Items)
-{
-    item.Font = toolbarFont;
-    item.AutoSize = false;
-    item.Height = itemHeight;
-    item.Margin = new Padding(2);
-}
+    foreach (ToolStripItem item in toolStripBottom.Items)
+    {
+        item.Font = toolbarFont;
+        item.AutoSize = false;
+        item.Height = itemHeight;
+        item.Margin = new Padding(2);
+    }
+
     // Add editor 1st fill space
     this.Controls.Add(editor);
     // Add toolbars 2nd
@@ -242,12 +235,7 @@ replaceAllButton = new ToolStripButton("🔄All");
 replaceAllButton.ToolTipText = "ReplaceAll";
 replaceAllButton.Click += (s, e) => ReplaceAll();
 
-highlightFindButton = new ToolStripButton("🖍");
-highlightFindButton.ToolTipText = "Highlight all matches";
-highlightFindButton.Click += (s, e) => HighlightAllMatches(findBox.Text);
-
     matchCountLabel = new ToolStripLabel("Matches: 0");
-
     editor.SelectionChanged += (s, e) => UpdateFontPicker();
 
     // Add buttons and separators to toolStripTop and toolStripBottom
@@ -280,14 +268,12 @@ highlightFindButton.Click += (s, e) => HighlightAllMatches(findBox.Text);
     toolStripBottom.Items.Add(replaceButton);
     toolStripBottom.Items.Add(replaceAllButton);
     toolStripBottom.Items.Add(new ToolStripSeparator());
-    toolStripBottom.Items.Add(highlightFindButton);
     toolStripBottom.Items.Add(matchCountLabel);
     ToolStripButton clearHighlightsButton = new ToolStripButton("🧹");
     clearHighlightsButton.ToolTipText = "Clear Find Highlights";
     clearHighlightsButton.Click += (s, e) => ClearFindHighlights();
     toolStripBottom.Items.Add(clearHighlightsButton);
     toolStripBottom.Items.Add(new ToolStripSeparator());
-
   }
 
 private void ApplyPermanentHighlight()
@@ -297,23 +283,18 @@ private void ApplyPermanentHighlight()
         MessageBox.Show("Please select text to mark.");
         return;
     }
-
     ColorDialog dialog = new ColorDialog();
     if (dialog.ShowDialog() != DialogResult.OK) return;
-
     int start = editor.SelectionStart;
     int length = editor.SelectionLength;
     Color chosenColor = dialog.Color;
-
     editor.SelectionBackColor = chosenColor;
-
     // Avoid duplicate or overlapping highlights
     foreach (HighlightRange h in permanentHighlights)
     {
         if (start < h.Start + h.Length && h.Start < start + length)
             return;
     }
-
     permanentHighlights.Add(new HighlightRange(start, length, chosenColor));
     editor.SelectionLength = 0;
 }
@@ -339,7 +320,6 @@ private void ApplyPermanentHighlight()
 private void UpdateFontPicker()
 {
     Font selFont = editor.SelectionFont;
-
     if (selFont != null)
     {
         fontButton.ToolTipText = string.Format("{0}, {1}pt", selFont.Name, selFont.SizeInPoints);
@@ -355,7 +335,6 @@ private void UpdateFontPicker()
     OpenFileDialog dialog = new OpenFileDialog();
     dialog.Filter = "Rich Text Format (*.rtf)|*.rtf|Text Files (*.txt)|*.txt";
     dialog.Title = "Open Note";
-
     if (dialog.ShowDialog() == DialogResult.OK)
     {
       try
@@ -379,7 +358,6 @@ private void UpdateFontPicker()
     SaveFileDialog dialog = new SaveFileDialog();
     dialog.Filter = "Rich Text Format (*.rtf)|*.rtf|Text Files (*.txt)|*.txt";
     dialog.Title = "Save Note";
-
     if (dialog.ShowDialog() == DialogResult.OK)
     {
       try
@@ -401,14 +379,12 @@ private void ExportAsStyledHtml()
   SaveFileDialog dialog = new SaveFileDialog();
   dialog.Filter = "HTML File (*.html)|*.html";
   dialog.Title = "Export as HTML";
-
   if (dialog.ShowDialog() == DialogResult.OK)
   {
     try
     {
       StringBuilder html = new StringBuilder();
       html.Append("<html><body style='font-family:Segoe UI;font-size:14px;'>");
-
       int i = 0;
       while (i < editor.TextLength)
       {
@@ -420,7 +396,6 @@ private void ExportAsStyledHtml()
           i++;
           continue;
         }
-
         int runStart = i;
         while (i < editor.TextLength)
         {
@@ -430,21 +405,16 @@ private void ExportAsStyledHtml()
             break;
           i++;
         }
-
         string segment = editor.Text.Substring(runStart, i - runStart);
         string encoded = System.Net.WebUtility.HtmlEncode(segment);
-
         if (baseFont.Bold) html.Append("<b>");
         if (baseFont.Italic) html.Append("<i>");
         if (baseFont.Underline) html.Append("<u>");
-
         html.Append(encoded.Replace("\n", "<br>"));
-
         if (baseFont.Underline) html.Append("</u>");
         if (baseFont.Italic) html.Append("</i>");
         if (baseFont.Bold) html.Append("</b>");
       }
-
       html.Append("</body></html>");
       File.WriteAllText(dialog.FileName, html.ToString());
     }
@@ -460,38 +430,31 @@ private void ExportAsStyledMarkdown()
     SaveFileDialog dialog = new SaveFileDialog();
     dialog.Filter = "Markdown File (*.md)|*.md";
     dialog.Title = "Export as Markdown";
-
     if (dialog.ShowDialog() != DialogResult.OK) return;
-
     try
     {
         StringBuilder md = new StringBuilder();
         string[] lines = editor.Text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-
         foreach (string line in lines)
         {
             string trimmed = line.Trim();
-
             if (string.IsNullOrWhiteSpace(trimmed))
             {
                 md.AppendLine();
                 continue;
             }
-
             // Header detection
             if (trimmed.StartsWith("#") || trimmed.StartsWith("##"))
             {
                 md.AppendLine(trimmed);
                 continue;
             }
-
             // Bullet list detection
             if (trimmed.StartsWith("•") || trimmed.StartsWith("- ") || trimmed.StartsWith("* "))
             {
                 md.AppendLine(trimmed);
                 continue;
             }
-
             // Code block detection
             if (trimmed.StartsWith("    ") || trimmed.StartsWith("\t"))
             {
@@ -500,13 +463,10 @@ private void ExportAsStyledMarkdown()
                 md.AppendLine("```");
                 continue;
             }
-
             // Escape special characters
             string escaped = trimmed.Replace("*", "\\*").Replace("_", "\\_").Replace("#", "\\#");
-
             md.AppendLine(escaped);
         }
-
         File.WriteAllText(dialog.FileName, md.ToString());
     }
     catch (Exception ex)
@@ -567,7 +527,6 @@ private void ReplaceAll()
 private string Prompt(string title, string defaultValue)
 {
     return Microsoft.VisualBasic.Interaction.InputBox(title, "Replace", defaultValue);
-//string replacement = Interaction.InputBox("Replace with:", "Replace", defaultValue);
 }
 
 private void ClearFindHighlights() //place before private void HighlightAllMatches
@@ -596,15 +555,13 @@ private bool IsInPermanentHighlight(int index)
 private void HighlightAllMatches(string query)
 {
     ClearTemporaryHighlights();
-
+    if (string.IsNullOrWhiteSpace(query)) return;
     int startIndex = 0;
     int matchCount = 0;
-
     while (startIndex < editor.TextLength)
     {
         int index = editor.Find(query, startIndex, RichTextBoxFinds.None);
         if (index < 0) break;
-
         bool overlapsPermanent = false;
         for (int i = index; i < index + query.Length; i++)
         {
@@ -614,21 +571,17 @@ private void HighlightAllMatches(string query)
                 break;
             }
         }
-
         if (!overlapsPermanent)
         {
             editor.Select(index, query.Length);
             editor.SelectionBackColor = Color.Yellow;
         }
-
         startIndex = index + query.Length;
         matchCount++;
     }
-
     editor.DeselectAll();
     matchCountLabel.Text = string.Format("Matches: {0}", matchCount);
 }
-
 
   private void ClearTemporaryHighlights()
   {
@@ -636,9 +589,12 @@ private void HighlightAllMatches(string query)
     {
         editor.Select(i, 1);
         if (editor.SelectionBackColor == Color.Yellow)
-            editor.SelectionBackColor = Color.White;
+        {
+            // Check if this character is part of a permanent highlight
+            if (!IsInPermanentHighlight(i))
+                editor.SelectionBackColor = Color.White;
+        }
     }
-
     // Reapply permanent highlights
     foreach (HighlightRange range in permanentHighlights)
     {
@@ -676,5 +632,4 @@ private void HighlightAllMatches(string query)
         editor.Text = "Failed to load RTF.";
     }
   }
-
 }
