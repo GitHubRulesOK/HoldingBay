@@ -583,33 +583,6 @@ private void ClearFindHighlights() //place before private void HighlightAllMatch
     editor.DeselectAll();
 }
 
-private void ApplyPermanentHighlight()
-{
-    if (editor.SelectionLength == 0)
-    {
-        MessageBox.Show("Please select text to mark.");
-        return;
-    }
-
-    ColorDialog dialog = new ColorDialog();
-    if (dialog.ShowDialog() != DialogResult.OK) return;
-
-    int start = editor.SelectionStart;
-    int length = editor.SelectionLength;
-    Color chosenColor = dialog.Color;
-
-    editor.SelectionBackColor = chosenColor;
-
-    foreach (HighlightRange h in permanentHighlights)
-    {
-        if (start < h.Start + h.Length && h.Start < start + length)
-            return;
-    }
-
-    permanentHighlights.Add(new HighlightRange(start, length, chosenColor));
-    editor.SelectionLength = 0;
-}
-
 private bool IsInPermanentHighlight(int index)
 {
     foreach (HighlightRange range in permanentHighlights)
@@ -705,6 +678,7 @@ private void HighlightAllMatches(string query)
   }
 
 }
+
 
 
 
