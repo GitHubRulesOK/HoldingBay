@@ -12,7 +12,7 @@ public class NoteEditor : UserControl
   private ToolStrip toolStripTop; private ToolStrip toolStripBottom;
   private ToolStripButton openButton, saveButton, exportHtmlButton, exportMdButton, imageButton;
   private ToolStripButton fontButton, colorButton, boldButton, italicButton, underlineButton, highlightMarkButton;
-  private ToolStripButton undoButton, redoButton, findButton, findNextButton, replaceButton, replaceAllButton, highlightFindButton;
+  private ToolStripButton undoButton, redoButton, findButton, findNextButton, replaceButton, replaceAllButton;
   private ToolStripTextBox findBox;
   private ToolStripLabel matchCountLabel;
   private int lastSearchIndex = 0;
@@ -633,3 +633,4 @@ private void HighlightAllMatches(string query)
     }
   }
 }
+
