@@ -18,7 +18,7 @@ public class DualView : Form
 
     public DualView()
     {
-        this.Text = "CubePDF Dual Viewer";
+        this.Text = "Twin Viewer";
         this.Size = new Size(1200, 700);
         this.BackColor = Color.Black;
         this.StartPosition = FormStartPosition.CenterScreen;
@@ -264,3 +264,4 @@ public class DualView : Form
         Application.Run(new DualView());
     }
 }
+
