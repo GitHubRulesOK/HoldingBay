@@ -1,0 +1,37 @@
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+  FILEVERSION 2020,4,16,0
+  PRODUCTVERSION 2020,4,16,0
+  FILEFLAGSMASK 0x0L
+  FILEFLAGS 0x0L
+  FILEOS 0x40004L
+  FILETYPE 0x1L
+  FILESUBTYPE 0x0L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "FileDescription", "PDF viewer\0"
+      VALUE "FileVersion", "2020-04-16\0"
+      VALUE "LegalCopyright", "2017-2020 Krzysztof Janicki (KDJ)\0"
+      VALUE "OriginalFilename", "PDFview.exe\0"
+      VALUE "ProductName", "PDFview\0"
+      VALUE "ProductVersion", "2020-04-16\0"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0, 0
+  END
+END
+
+BmpArrowS   BITMAP Resource\BmpArrowS.bmp
+BmpArrowW   BITMAP Resource\BmpArrowW.bmp
+BmpArrowE   BITMAP Resource\BmpArrowE.bmp
+CurDragDrop CURSOR Resource\CurDragDrop.cur
+CurArrowNE  CURSOR Resource\CurArrowNE.cur
+CurResizeWE CURSOR Resource\CurResizeWE.cur
+IcoPDF      ICON   Resource\IcoPDF.ico

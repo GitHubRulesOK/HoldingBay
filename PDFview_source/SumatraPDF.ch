@@ -1,0 +1,30 @@
+//from SumatraPD source (resource.h)
+//                            ver.3.1.2     ver.3.2
+#define IDM_SAVEAS                  402 //      406
+#define IDM_PRINT                   403 //      408
+#define IDM_PROPERTIES              409 //      420
+#define IDM_VIEW_SINGLE_PAGE        410 //      422
+#define IDM_VIEW_FACING             411 //      423
+#define IDM_VIEW_BOOK               412 //      424
+#define IDM_VIEW_ROTATE_LEFT        415 //      432
+#define IDM_VIEW_ROTATE_RIGHT       416 //      434
+#define IDM_VIEW_BOOKMARKS          417 //      436
+#define IDM_VIEW_SHOW_HIDE_TOOLBAR  419 //      440
+#define IDM_COPY_SELECTION          420 //      442
+#define IDM_SELECT_ALL              422 //      446
+#define IDM_GOTO_NEXT_PAGE          430 //      460
+#define IDM_GOTO_PREV_PAGE          431 //      462
+#define IDM_GOTO_FIRST_PAGE         432 //      464
+#define IDM_GOTO_LAST_PAGE          433 //      466
+#define IDM_GOTO_PAGE               434 //      468
+#define IDM_FIND_FIRST              435 //      470
+#define IDM_FIND_NEXT               436 //      472
+#define IDM_FIND_PREV               437 //      474
+#define IDM_ZOOM_FIT_PAGE           440 //      480
+#define IDM_ZOOM_ACTUAL_SIZE        441 //      481
+#define IDM_ZOOM_CUSTOM             457 //      497
+#define IDM_ABOUT                   551 //      584
+#define IDT_VIEW_ZOOMIN            3012 //     3012
+#define IDT_VIEW_ZOOMOUT           3013 //     3013
+#define IDT_VIEW_FIT_WIDTH         3026 //     3026
+#define IDT_VIEW_FIT_PAGE          3027 //     3027
