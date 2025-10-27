@@ -12,7 +12,7 @@ class NavigatorForm : Form
   Dictionary<string, Color> groupColors = new Dictionary<string, Color>();
   Dictionary<string, string> appExecutables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
   Dictionary<string, string> globalSettings = new Dictionary<string, string>();
-  Dictionary<string, string> tooltipDict = new Dictionary<string, string>();
+  Dictionary<string, string> tooltipDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
   Dictionary<string, Dictionary<string, TopicData>> treeData = new Dictionary<string, Dictionary<string, TopicData>>();
   string theme = "Light"; string startSide = "Left"; int startLevel = 1; int clickMode = 1; int lineHeight = 20; float fontSize = 10f;
   string targetClass = ""; bool clingRight; int clingOffset = 0; int timerInterval = 0;
@@ -619,5 +619,6 @@ class NavigatorForm : Form
     Application.Run(new NavigatorForm());
   }
 }
+
 
 
