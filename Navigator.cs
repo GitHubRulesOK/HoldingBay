@@ -44,7 +44,7 @@ class NavigatorForm : Form
     layout.Controls.Add(buttonPanel, 0, 0); layout.Controls.Add(treeView, 0, 1); this.Controls.Add(layout);
     string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
     string iniPath = Path.Combine(exeDir, "config.ini");
-    LoadIni(iniPath);
+    LoadIni(iniPath); UpdateButtonTooltips();
     ApplyTheme(); BuildTree(); SetTreeViewItemHeight(lineHeight); treeView.Font = new Font(treeView.Font.FontFamily, fontSize);
     treeView.NodeMouseClick -= TreeView_NodeMouseClick; treeView.NodeMouseDoubleClick -= TreeView_NodeMouseDoubleClick;
     if (clickMode == 1)
@@ -76,7 +76,7 @@ class NavigatorForm : Form
 
   Button MakeButton(string icon, string key, EventHandler click)
   {
-    var btn = new Button { Text = icon, Width = 40, Height = 40 };
+    var btn = new Button { Text = icon, Width = 40, Height = 40, Tag = key };
     btn.Click += click;
     if (tooltipDict.ContainsKey(key))
       tip.SetToolTip(btn, tooltipDict[key]);
@@ -84,7 +84,23 @@ class NavigatorForm : Form
       tip.SetToolTip(btn, key);
     return btn;
   }
-
+  private void UpdateButtonTooltips()
+  {
+    foreach (Control ctrl in buttonPanel.Controls)
+    {
+      Button btn = ctrl as Button;
+      if (btn != null)
+      {
+          // Assuming the button's Tag or another property stores the key
+          // If no Tag is set, we need to map buttons to their keys explicitly
+          string key = btn.Tag?.ToString();
+          if (key != null && tooltipDict.ContainsKey(key))
+              tip.SetToolTip(btn, tooltipDict[key]);
+          else
+              tip.SetToolTip(btn, key ?? btn.Text); // Fallback to key or button text
+        }
+    }
+  }
   void ReloadIni()
   {
     // Stopwatch sw = new Stopwatch(); sw.Start(); // Block for debugging
@@ -131,6 +147,7 @@ class NavigatorForm : Form
     treeData = newTreeData;
     ExpandToLevel(treeView.Nodes, startLevel);
     treeView.Refresh();
+    UpdateButtonTooltips();
     // ValidateSettings(); sw.Stop(); // Block for debugging
     // MessageBox.Show(string.Format("ReloadIni took {0} ms", sw.ElapsedMilliseconds), "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
   }
@@ -619,6 +636,7 @@ class NavigatorForm : Form
     Application.Run(new NavigatorForm());
   }
 }
+
 
 
 
