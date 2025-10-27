@@ -42,7 +42,9 @@ class NavigatorForm : Form
     treeView.DrawNode += TreeView_DrawNode; treeView.MouseDown += TreeView_MouseDown; treeView.MouseMove += TreeView_MouseMove;
     treeView.Indent = 8;
     layout.Controls.Add(buttonPanel, 0, 0); layout.Controls.Add(treeView, 0, 1); this.Controls.Add(layout);
-    LoadIni("config.ini");
+    string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+    string iniPath = Path.Combine(exeDir, "");
+    LoadIni(iniPath);
     ApplyTheme(); BuildTree(); SetTreeViewItemHeight(lineHeight); treeView.Font = new Font(treeView.Font.FontFamily, fontSize);
     treeView.NodeMouseClick -= TreeView_NodeMouseClick; treeView.NodeMouseDoubleClick -= TreeView_NodeMouseDoubleClick;
     if (clickMode == 1)
@@ -99,7 +101,9 @@ class NavigatorForm : Form
     var newTooltipDict = new Dictionary<string, string>();
     var newTreeData = new Dictionary<string, Dictionary<string, TopicData>>();
     // Load new INI data into temporary structures
-    LoadIni("config.ini", newGroupColors, newAppExecutables, newTooltipDict, newTreeData);
+    string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+    string iniPath = Path.Combine(exeDir, "");
+    LoadIni(iniPath, newGroupColors, newAppExecutables, newTooltipDict, newTreeData);
     // Update only if settings changed
     if (oldClickMode != clickMode || oldLineHeight != lineHeight || oldFontSize != fontSize ||
       oldTheme != theme || oldStartSide != startSide || oldStartLevel != startLevel)
@@ -615,3 +619,4 @@ class NavigatorForm : Form
     Application.Run(new NavigatorForm());
   }
 }
+
