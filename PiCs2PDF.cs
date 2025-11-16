@@ -8,8 +8,9 @@ class Program {
 
     static void Main(string[] args) {
         if (args.Length < 1) {
-            Console.WriteLine("\nUsage: PiCs2PDF.exe x=WIDTH y=HEIGHT [p=NN] o=L,T,R,B bg=RRGGBB auto=on|NN <file|folder> [output.pdf]");
-            Console.WriteLine("\nUnits: WIDTH/HEIGHT in mm, Optionally set one and other to zer0. Optional over-ride using fixed p=ppi, Margins in mm.");
+            Console.WriteLine("\nUsage: PiCs2PDF.exe x=Width y=Height [p=NN] o=L,T,R,B bg=RRGGBB auto=on|NN <file|folder> [output.pdf]");
+            Console.WriteLine("\nUnits: Width/Height in mm, Optionally can be w=## & h=##. Also you can set either one and other to zer0");
+            Console.WriteLine("Optional fixed media size can be over-riden using fixed p=ppi. Margins 0= and auto= are in mm.");
             Console.WriteLine("\nExample: PiCs2PDF.exe x=210 y=297 o=10,10,10,20 bg=ffffff auto=10 images out.pdf");
             return;
         }
@@ -17,16 +18,23 @@ class Program {
         // Defaults for unattended use
         float pageWmm = 210;               // A4 width mm
         float pageHmm = 297;               // A4 height mm
+        float userPpi = -1;                // Default: not set but allow for UsersChoice of set Pixels Per Inch
         float marginLeftMm = 0, marginTopMm = 0, marginRightMm = 0, marginBottomMm = 0; // Borderless
         Color? bgColor = null;             // Transparent
         bool autoRotate = false;           // No Page rotations
         float autoBottomMm = -1;           // -1 means not set
         string inputPath = null;           // Attempt input string as file or folder
         string outputPath = "output.pdf";  // Relative to caller
-        float userPpi = -1;                // Default: not set but allow for UsersChoice of set Pixels Per Inch
+
         foreach (string arg in args) {
-            if (arg.StartsWith("x=")) pageWmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
-            else if (arg.StartsWith("y=")) pageHmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
+            if (arg.StartsWith("x=") || arg.StartsWith("w="))
+            {
+                pageWmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
+            }
+            else if (arg.StartsWith("y=") || arg.StartsWith("h="))
+            {
+                pageHmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
+            }
             else if (arg.StartsWith("p="))
             {
                 userPpi = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
@@ -278,3 +286,4 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
+
