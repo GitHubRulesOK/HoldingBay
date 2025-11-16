@@ -75,8 +75,11 @@ class Program {
         foreach (string file in files) {
             string ext = Path.GetExtension(file).ToLower();
             // We can only use single PDF viable image per page and parsable, thus we limit to those file extensions
-            if (ext != ".png" && ext != ".bmp" && ext != ".jpg" && ext != ".jpeg" && ext != ".tif" && ext != ".tiff") {
-                continue;
+            if (ext != ".png" && ext != ".bmp" && ext != ".jpg" &&
+                ext != ".jpeg" && ext != ".tif" && ext != ".tiff" && ext != ".gif")
+            {
+                Console.WriteLine("Skipped unsupported format: " + file);
+                continue; // move on to next file
             }
             Bitmap bmp = new Bitmap(file);
             int imgW = bmp.Width;
@@ -113,7 +116,6 @@ class Program {
             int imgObj = objCount++;     // At this stage all counters will be 1 so  /Image will be 1 4 7 etc.
             int contentObj = objCount++; // This should become 2 5 8 etc.
             int pageObj = objCount++;    // This should become 3 6 9 etc.
-
 
             // Define OBJ per /Image as length text integers. JPEG is always optimal DCT compression so passthrough. For others use Zip flate compression
             if (ext == ".jpg" || ext == ".jpeg") {
@@ -161,6 +163,13 @@ class Program {
         }
 
         // Define OBJ per /Pages counted.
+        if (pageRefs.Count == 0)
+        {
+            Console.WriteLine("No valid images processed. PDF aborted.");
+            pdf.Close();
+            File.Delete(outputPath); // optional cleanup
+            return;
+        }
         int pagesObj = objCount++;
         positions.Add(pdf.Position);
         Write(string.Format("{0} 0 obj <</Type/Pages/Kids[{1}]/Count {2}>> endobj\n",
