@@ -9,8 +9,8 @@ class Program {
     static void Main(string[] args) {
         if (args.Length < 1) {
             Console.WriteLine("\nUsage: PiCs2PDF.exe x=Width y=Height [p=NN] o=L,T,R,B bg=RRGGBB auto=on|NN <file|folder> [output.pdf]");
-            Console.WriteLine("\nUnits: Width/Height in mm, Optionally can be w=## & h=##. Also you can set either one and other to zer0");
-            Console.WriteLine("Optional fixed media size can be over-riden using fixed p=ppi. Margins 0= and auto= are in mm.");
+            Console.WriteLine("\nUnits: Width/Height in mm, Optionally you can use w=## and h=##. You may set one to 0 (variable) and the other is fixed");
+            Console.WriteLine("Optional fixed media size can be overriden using p=ppi. Margins o= and auto= are in mm.");
             Console.WriteLine("\nExample: PiCs2PDF.exe x=210 y=297 o=10,10,10,20 bg=ffffff auto=10 images out.pdf");
             return;
         }
@@ -286,4 +286,5 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
+
 
