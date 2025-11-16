@@ -87,7 +87,16 @@ class Program {
                 Console.WriteLine("Skipped unsupported format: " + file);
                 continue; // move on to next file
             }
-            Bitmap bmp = new Bitmap(file);
+            Bitmap bmp;
+            try
+            {
+                bmp = new Bitmap(file);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to load image: " + file + " (" + ex.Message + ")");
+                continue; // skip this file and move on
+            }
             int imgW = bmp.Width;
             int imgH = bmp.Height;
             // Convert mm to points
@@ -269,5 +278,3 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
-
-
