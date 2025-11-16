@@ -71,6 +71,7 @@ class Program {
         }
         if (inputPath == null) {
             Console.WriteLine("No input file or folder specified. Call without options to see example usage");
+            Environment.ExitCode = 1;
             return;
         }
         string[] files;
@@ -78,6 +79,7 @@ class Program {
         else if (Directory.Exists(inputPath)) files = Directory.GetFiles(inputPath);
         else {
             Console.WriteLine("Input not found: " + inputPath);
+            Environment.ExitCode = 1;
             return;
         }
 
@@ -208,6 +210,7 @@ class Program {
             Console.WriteLine("No valid images processed. PDF aborted.");
             pdf.Close();
             File.Delete(outputPath); // optional cleanup
+            Environment.ExitCode = 2;
             return;
         }
         int pagesObj = objCount++;
@@ -231,6 +234,7 @@ class Program {
         // Finished
         pdf.Close();
         Console.WriteLine("PDF created successfully: " + outputPath);
+        Environment.ExitCode = 0;
     }
 
     static float MmToPt(float mm) {
@@ -286,5 +290,6 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
+
 
 
