@@ -8,8 +8,9 @@ class Program {
 
     static void Main(string[] args) {
         if (args.Length < 1) {
-            Console.WriteLine("\nUsage: PiCs2PDF.exe x=WIDTH y=HEIGHT o=L,T,R,B bg=RRGGBB auto=on|NN <file|folder> [output.pdf]");
-            Console.WriteLine("\nUnits: WIDTH/HEIGHT in mm, margins in mm.\n\nExample: PiCs2PDF.exe x=210 y=297 o=10,10,10,20 bg=ffffff auto=10 images out.pdf");
+            Console.WriteLine("\nUsage: PiCs2PDF.exe x=WIDTH y=HEIGHT [p=NN] o=L,T,R,B bg=RRGGBB auto=on|NN <file|folder> [output.pdf]");
+            Console.WriteLine("\nUnits: WIDTH/HEIGHT in mm, Optionally set one and other to zer0. Optional over-ride using fixed p=ppi, Margins in mm.");
+            Console.WriteLine("\nExample: PiCs2PDF.exe x=210 y=297 o=10,10,10,20 bg=ffffff auto=10 images out.pdf");
             return;
         }
 
@@ -22,9 +23,14 @@ class Program {
         float autoBottomMm = -1;           // -1 means not set
         string inputPath = null;           // Attempt input string as file or folder
         string outputPath = "output.pdf";  // Relative to caller
+        float userPpi = -1;                // Default: not set but allow for UsersChoice of set Pixels Per Inch
         foreach (string arg in args) {
             if (arg.StartsWith("x=")) pageWmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
             else if (arg.StartsWith("y=")) pageHmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
+            else if (arg.StartsWith("p="))
+            {
+                userPpi = float.Parse(arg.Substring(4), CultureInfo.InvariantCulture);
+            }
             else if (arg.StartsWith("o=")) {
                 string[] parts = arg.Substring(2).Split(',');
                 if (parts.Length == 4) {
@@ -91,6 +97,23 @@ class Program {
             float marginTop = MmToPt(marginTopMm);
             float marginRight = MmToPt(marginRightMm);
             float marginBottom = MmToPt(marginBottomMm);
+            // Optional PPI override (user arg "p=NN")
+            if (userPpi > 0)
+            {
+                pageW = imgW / userPpi * 72f;
+                pageH = imgH / userPpi * 72f;
+            }
+            // Zero-dim handling
+            if (pageWmm == 0 && pageHmm > 0)
+            {
+                pageH = MmToPt(pageHmm);
+                pageW = pageH * imgW / imgH; // scale width portion
+            }
+            else if (pageHmm == 0 && pageWmm > 0)
+            {
+                pageW = MmToPt(pageWmm);
+                pageH = pageW * imgH / imgW; // scale height portion
+            }
             // Calculate orientation
             float curPageW = pageW;
             float curPageH = pageH;
@@ -246,3 +269,4 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
+
