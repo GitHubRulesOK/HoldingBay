@@ -29,7 +29,7 @@ class Program {
             else if (arg.StartsWith("y=")) pageHmm = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
             else if (arg.StartsWith("p="))
             {
-                userPpi = float.Parse(arg.Substring(4), CultureInfo.InvariantCulture);
+                userPpi = float.Parse(arg.Substring(2), CultureInfo.InvariantCulture);
             }
             else if (arg.StartsWith("o=")) {
                 string[] parts = arg.Substring(2).Split(',');
@@ -269,4 +269,5 @@ class Program {
         pdf.Write(bytes, 0, bytes.Length);
     }
 }
+
 
