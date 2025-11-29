@@ -44,11 +44,11 @@ const char* version = "v1.11 Partial (Bmp only)";
  *
  * www.retroprinter.com
  *
- * Relies on libpng and ImageMagick libraries
+ * This "v1.11 Partial (Bmp only)" variation has NO Reliance on libpng nor ImageMagick libraries
  *
  * Incoming data (if Epson ESC/P or ESC/P2) is used to generate a bitmap.
- * Without any library to convert the bitmap directly to PDF, we have to convert the bitmap to PNG initially and then
- * convert the PNG to a PDF file using the libHaru library
+ * Without any library to convert the bitmap directly to PDF, we have to convert the bitmap to Borderless BMP initially and then
+ * convert the BMP to a PDF file with margin offsets using Native Windows methods
  */
 
 // START OF CONFIGURATION OPTIONS
