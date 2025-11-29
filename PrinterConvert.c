@@ -459,56 +459,33 @@ void erasepage()
 
 int initialize(const char* input_filename)
 {
-    // Choose PNG Generation mode - 1 = in memory (fast but uses a lot more memory), 2 = use external file (slower, but less memory)
-    imageMode = 1;
-
-    marginleftp = defaultMarginLeftp;
-    marginrightp = defaultMarginRightp;   // in pixels
-    margintopp = defaultMarginTopp;
-    marginbottomp = defaultMarginBottomp;
+    // Set up for borderless BMP
+    marginleftp = 0;
+    marginrightp = pageSetWidth;
+    margintopp = 0;
+    marginbottomp = pageSetHeight;
 
     // Set aside enough memory to store the parsed image
-    printermemory = malloc ((pageSetWidth+1) * pageSetHeight);
+    printermemory = malloc((pageSetWidth+1) * pageSetHeight);
     if (printermemory == NULL) {
         fputs("Can't allocate memory for Printer Conversion.\n", stderr);
-        exit (1);
+        exit(1);
     }
-    // For Delta Row compression - set aside room to store 4 seed rows (1 per supported colour)
-    if (imageMode == 1 ) {
-        // Faster method of creating and converting PNG image - stores it in memory, so needs a lot more memory
-        imagememory = calloc (3 * (pageSetWidth+1) * pageSetHeight, 1);
-        if (imagememory == NULL) {
-            free(printermemory);
-            printermemory=NULL;
-            fputs("Can't allocate memory for PNG image.\n", stderr);
-            exit (1);
-        }
-        // For Delta Row compression - set aside room to store colourSupport (4 or 6) seed rows (1 per supported colour)
-        // May as well use the imagememory temporarily for the seedrows
-        seedrow = imagememory;
-    } else {
-        // Slower method - PNG image is saved to disk first and then converted from there
-        seedrow = calloc ((pageSetWidth+1) * colourSupport, 1);
-        if (seedrow == NULL) {
-            free(printermemory);
-            printermemory=NULL;
-            fputs("Can't allocate memory for Delta Row Printing.\n", stderr);
-            exit (1);
-        }
-    }
+
+    // Clear page to white before rendering
     erasepage();
+
+    // Prepare colour lookup table
     setupColourTable();
-    /* routine could be used here to open the input file or port for reading
-    *  example is for reading from an input file called ./Test1.prn
-    *  The routine is not error trapped at present
-    */
+
+    // Open input file
     inputFile = fopen(input_filename, "r");
-    if (inputFile == NULL)
-    {
+    if (inputFile == NULL) {
         fprintf(stderr, "Failed to open input file: '%s'\n", input_filename);
         return -1;
     }
 
+    return 0;
 }
 
 int read_byte_from_file (char *xd)
