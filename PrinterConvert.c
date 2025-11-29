@@ -52,10 +52,6 @@ const char* version = "v1.11 Partial (Bmp only)";
  */
 
 // START OF CONFIGURATION OPTIONS
-// Configuration files - these are simple files with flags
-#define LINEFEED_CONFIG     "/root/config/linefeed_ending"          // Unix, Windows or Mac line feeds in conversion
-#define PATH_CONFIG         "/root/config/output_path"              // default path for output files
-
 int cpi = 10;                               // PICA is standard
 int pitch = 10;                             //Same as cpi but will retain its value when condensed printing is switched on
 int needles = 24;                           // number of needles - 9 pin can be important for line spacing
@@ -66,6 +62,14 @@ int colourSupport = 6;                      // Does the ESC.2 / ESC.3 mode suppo
 int auto_LF = 0;                            // Whether we should process a CR on its own as a line feed
 int step = 0;
 // END OF CONFIGURATION OPTIONS
+
+// Runtime options (to be set from command-line parsing)
+char output_base[PATH_MAX] = "output";      // Base name (will form output_base_001.bmp etc.)
+char output_dir[PATH_MAX]  = ".";           // Default to current directory
+int page_width_px  = 0;                     // Set from -p W,H option
+int page_height_px = 0;                     // Set from -p W,H option
+int margin_left_px = 0;                     // Set from -m option (whitespace)
+int margin_top_px  = 0;                     // Set from -m option
 
 int use8bitchars = 0;                       // Use 8 bit character sets - for example for umlaut characters ASCII 160-255 are treated as normal characters (see Italics too)
 int useItalicsCharSet = 0;                  // Whether characters with codes ASCII 160-255 are to be treated as italics (do not use with use8bitchars)
