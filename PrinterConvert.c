@@ -5,16 +5,12 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <limits.h>
-#include <unistd.h>
-#include <png.h>
-#include <setjmp.h>
-#include "/usr/include/hpdf.h"
-#include "/usr/include/SDL/SDL.h"
-#include "dir.c"
 
-const char* version = "v1.11";
+const char* version = "v1.11 Partial (Bmp only)";
 
-/* Conversion program to convert Epson ESC/P printer data to an Adobe PDF file on Linux.
+/* Conversion program to convert Epson ESC/P printer data to BMP image only on Windows.
+ * v1.11 Partial (Bmp only)
+ * Conversion program to convert Epson ESC/P printer data to an Adobe PDF file on Linux.
  * v1.11
  *
  * v1.0 First Release - taken from the conversion software currently in development for the Retro-Printer module.
