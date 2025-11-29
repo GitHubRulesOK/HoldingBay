@@ -521,200 +521,6 @@ int cfileexists(const char* filename)
     return (stat (filename, &buffer) == 0);
 }
 
-int write_png(const char *filename, int width, int height, char *rgb)
-{
-    int ipos, data_found = 0, end_loop = 0;
-    unsigned char pixelColour;
-    int code = 1;
-    //Used only if (imageMode == 2 )
-    png_structp png_ptr = NULL;
-    png_infop info_ptr = NULL;
-    png_bytep row = NULL;
-    //
-    FILE *file = NULL;
-
-    // Check if a blank page - if so ignore it!
-    int x, y, ppos;
-    for (y=0 ; y<height && !data_found; y++) {
-        ipos = width * y;
-        for (x=0 ; x<width && !data_found; x++) {
-            if (rgb[ipos+x] != WHITE) data_found = 1;
-        }
-    }
-    if (!data_found) return 0; // Nothing to print
-
-    if (imageMode == 1 ) {
-        // Create raw image in memory for speed
-        // Write image data - 8 bit RGB
-        // Create raw image in memory
-        ppos=0;
-        for (y=0 ; y<height ; y++) {
-            ipos = width * y;
-            for (x=0 ; x<width ; x++) {
-                pixelColour = rgb[ipos + x];
-                imagememory[ppos++] = red[pixelColour];
-                imagememory[ppos++] = green[pixelColour];
-                imagememory[ppos++] = blue[pixelColour];
-            }
-        }
-    } else {
-        // Use LibPNG to create a PNG image on disk for conversion
-        if (!quiet_mode) printf("write   = %s \n", filenameX);
-        // Open file for writing (binary mode)
-        file = fopen(filename, "wb");
-        if (file == NULL) {
-            fprintf(stderr, "PNG error - Could not open file %s for writing\n", filename);
-            code = 0;
-            goto finalise;
-        }
-        // Initialize write structure
-        png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        if (png_ptr == NULL) {
-            fputs("PNG error - Could not allocate write structure\n", stderr);
-            code = 0;
-            goto finalise;
-        }
-        // Initialize info structure
-        info_ptr = png_create_info_struct(png_ptr);
-        if (info_ptr == NULL) {
-            fputs("PNG error - Could not allocate info structure\n", stderr);
-            code = 0;
-            goto finalise;
-        }
-
-        png_set_compression_level(png_ptr, 6);  // Minimal compression for speed - balance against time taken by convert routine
-        // Setup Exception handling
-        if (setjmp(png_jmpbuf(png_ptr))) {
-            fputs("Error during png creation\n", stderr);
-            code = 0;
-            goto finalise;
-        }
-
-        png_init_io(png_ptr, file);
-
-        // Write header (8 bit colour depth)
-        png_set_IHDR(png_ptr, info_ptr, width, height,
-                    8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-                    PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-        // Set the resolution of the image to 720dpi
-        png_set_pHYs(png_ptr, info_ptr, printerdpih/0.0254, printerdpiv/0.0254,
-            PNG_RESOLUTION_METER);
-
-        png_write_info(png_ptr, info_ptr);
-        // Allocate memory for a rows (3 bytes per pixel - 8 bit RGB)
-        row = (png_bytep) malloc(3 * width * sizeof(png_byte));
-        if (row == NULL) {
-            fputs("Can't allocate memory for PNG file.\n", stderr);
-            code = 0;
-            goto finalise;
-        }
-
-        // Write image data - 8 bit RGB
-        for (y=0 ; y<height ; y++) {
-            ipos = width * y;
-            ppos=0;
-            for (x=0 ; x<width ; x++) {
-                pixelColour = rgb[ipos + x];
-                row[ppos++] = red[pixelColour];
-                row[ppos++] = green[pixelColour];
-                row[ppos++] = blue[pixelColour];
-            }
-            png_write_row(png_ptr, row);
-        }
-
-        // End write
-        png_write_end(png_ptr, NULL);
-    }
-
-finalise:
-    if (imageMode == 1 ) {
-        // No need to free up memory - will reuse existing memory
-    } else {
-        // Tidy up LibPNG accesses
-        if (file != NULL) fclose(file);
-        if (info_ptr != NULL) png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
-        if (png_ptr != NULL) png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
-        if (row != NULL) free(row);
-    }
-    return code;
-}
-
-void pdf_error_handler (HPDF_STATUS error_no, HPDF_STATUS detail_no, void *user_data)
-{
-    fprintf(stderr, "ERROR: error_no=%04X, detail_no=%u\n", (HPDF_UINT)error_no, (HPDF_UINT)detail_no);
-    longjmp(env, 1);
-}
-
-HPDF_REAL ScaleDPI(HPDF_REAL size)
-{
-    return (float) size * (72.0F / (float) printerdpih);
-}
-
-int write_pdf (const char *filename, const char *pdfname, int width, int height)
-{
-    HPDF_Doc  pdf;
-    HPDF_Font font;
-    HPDF_Page page;
-    HPDF_Destination dst;
-
-    pdf = HPDF_New (pdf_error_handler, NULL);
-    if (!pdf) {
-        fputs("error: cannot create PdfDoc object\n", stderr);
-        return 1;
-    }
-
-    /* error-handler */
-    if (setjmp(env)) {
-        HPDF_Free (pdf);
-        return 1;
-    }
-
-    HPDF_SetCompressionMode (pdf, HPDF_COMP_ALL);
-
-    /* create default-font */
-    font = HPDF_GetFont (pdf, "Helvetica", NULL);
-
-    /* add a new page object. */
-    page = HPDF_AddPage (pdf);
-
-    HPDF_Page_SetWidth (page, ScaleDPI(width));
-    HPDF_Page_SetHeight (page, ScaleDPI(height));
-
-    dst = HPDF_Page_CreateDestination (page);
-    HPDF_Destination_SetXYZ (dst, 0, HPDF_Page_GetHeight (page), 1);
-    HPDF_SetOpenAction(pdf, dst);
-
-    /*
-    HPDF_Page_BeginText (page);
-    HPDF_Page_SetFontAndSize (page, font, 20);
-    HPDF_Page_MoveTextPos (page, 220, HPDF_Page_GetHeight (page) - 70);
-    HPDF_Page_ShowText (page, "PngDemo");
-    HPDF_Page_EndText (page);
-    HPDF_Page_SetFontAndSize (page, font, 12);
-    */
-
-    HPDF_Image image;
-
-    if (imageMode == 1 ) {
-        image = HPDF_LoadRawImageFromMem (pdf, imagememory,
-                width, height, HPDF_CS_DEVICE_RGB, 8);
-    } else {
-        image = HPDF_LoadPngImageFromFile (pdf, filename);
-    }
-
-    /* Draw image to the canvas. */
-    HPDF_Page_DrawImage (page, image, 0, 0, ScaleDPI(width),
-                    ScaleDPI(height));
-
-    /* save the document to a file */
-    HPDF_SaveToFile (pdf, pdfname);
-
-    /* clean up */
-    HPDF_Free (pdf);
-
-    return 0;
-}
-
 void putpx(int x, int y)
 {
     // Write printer colour to specific pixel on the created bitmap
@@ -877,48 +683,39 @@ FILE *fp = NULL;
 #define FONT_SIZE  4096
 char fontx[FONT_SIZE];
 
-void erasesdl()
-{
-    int i, t;
-    if (sdlon == 0) return;
-    // pageSetWidth*pageSetHeight
-    for (i = 0; i < pageSetWidth; i++) {
-        for (t = 0; t < pageSetHeight; t++) {
-            putpixel(display, i, t, 0x00FFFFFF);
-        }
-    }
-}
-
 int test_for_new_paper()
 {
-    // if we are out of paper
+    // If we are out of paper (really: time to start a new page)
     if ((ypos < margintopp) || (ypos > marginbottomp) || (state == 0)) {
         xpos = marginleftp;
         ypos = margintopp;
-        sprintf(filenameX, "%spage%d.png", pathpng, page);
-        if (write_png(filenameX, pageSetWidth, pageSetHeight, printermemory) > 0) {
-            // Create pdf file
-            sprintf(filenameY, "%spage%d.pdf", pathpdf, page);
-            write_pdf(filenameX, filenameY, pageSetWidth, pageSetHeight);
-            erasesdl();
+
+        // Build BMP filename
+        char filenameBMP[PATH_MAX];
+        sprintf(filenameBMP, "%spage%d.bmp", output_dir, page);
+
+        // Write BMP file
+        if (write_bmp(filenameBMP, pageSetWidth, pageSetHeight, printermemory) == 0) {
+            // Clear memory for next page
             erasepage();
+
+            // Increment page counter
             page++;
+
+            // Optional: limit number of pages
             if (page > 199) {
-                page = dirX(pathraw);
-                reduce_pages(page, pathraw);
-                page = dirX(pathpng);
-                reduce_pages(page, pathpng);
-                page = dirX(pathpdf);
-                reduce_pages(page, pathpdf);
-                page = dirX(pathpdf) + 1;
+                page = 1; // wrap around or handle differently
             }
         }
+
+        // Close any open file pointer (if used elsewhere)
         if (fp != NULL) {
             fclose(fp);
             fp = NULL;
         }
     }
     state = 1;
+    return 0;
 }
 
 int precedingDot(int x, int y) {
