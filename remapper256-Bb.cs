@@ -12,7 +12,7 @@ class DecoderGrid : Form
     TextBox UTF8input;
     TextBox txtInput;
     TextBox txtOutput;
-    TextBox UTF16;
+    TextBox txtUtf16;
     Button btnClean;
     Button btnConvert;
     Button btnImport;
@@ -20,6 +20,7 @@ class DecoderGrid : Form
     Button btnReset;
     Button btnMode;
     bool initializing = true;
+    bool modeReverse = false;   // false = CODE2CEL mode, true = CEL2CODE mode
     public DecoderGrid()
     {
         Text = "UnEncoder Grid (16×16, CSV import/export)";
@@ -92,15 +93,15 @@ class DecoderGrid : Form
         lblUtf16.Location = new Point(10, 301);
         lblUtf16.Width = 200;
         Controls.Add(lblUtf16);
-        UTF16 = new TextBox();
-        UTF16.Font = mono;
-        UTF16.Multiline = true;
-        UTF16.ScrollBars = ScrollBars.Vertical;
-        UTF16.Location = new Point(10, 324);
-        UTF16.Width = 985;
-        UTF16.Height = 70;
-        UTF16.ReadOnly = true;
-        Controls.Add(UTF16);
+        txtUtf16 = new TextBox();
+        txtUtf16.Font = mono;
+        txtUtf16.Multiline = true;
+        txtUtf16.ScrollBars = ScrollBars.Vertical;
+        txtUtf16.Location = new Point(10, 324);
+        txtUtf16.Width = 985;
+        txtUtf16.Height = 70;
+        txtUtf16.ReadOnly = true;
+        Controls.Add(txtUtf16);
         btnImport = new Button();
         btnImport.Text = "Import CSV…";
         btnImport.Location = new Point(10, 400);
@@ -119,7 +120,7 @@ class DecoderGrid : Form
         btnMode = new Button();
         btnMode.Text = "Switch Mode";
         btnMode.Location = new Point(340, 400);
-        btnMode.Click += new EventHandler(BtnMode_Click);
+        btnMode.Click += BtnMode_Click;
         Controls.Add(btnReset);
         // --- Grid: 16×16 UTF-16 hex cells ---
         int gridTop = 430;
@@ -330,6 +331,14 @@ class DecoderGrid : Form
             MessageBox.Show("Error exporting CSV:\r\n" + ex.Message, "Export error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+    private void BtnMode_Click(object sender, EventArgs e)
+    {
+        modeReverse = !modeReverse;
+        // Update button text so user sees which mode is active
+        btnMode.Text = modeReverse ? "Mode: CEL→CODE" : "Mode: CODE→CEL";
+        // Re-run mapping + decode in the new mode
+        UpdateMapping();
     }
 
 public static string CleanPdfTextMixed(string raw)
@@ -691,15 +700,17 @@ void UpdateMapping()
 
 void Decode()
 {
-    if (txtInput == null || txtOutput == null || UTF16 == null)
+    if (txtInput == null || txtOutput == null || txtUtf16 == null)
         return;
+
     string raw = txtInput.Text;
     if (string.IsNullOrWhiteSpace(raw))
     {
         txtOutput.Text = "";
-        UTF16.Text = "";
+        txtUtf16.Text = "";
         return;
     }
+
     // Clean input: remove < > whitespace etc.
     StringBuilder cleaned = new StringBuilder();
     foreach (char ch in raw)
@@ -708,68 +719,101 @@ void Decode()
             continue;
         cleaned.Append(ch);
     }
+
     string hexStream = cleaned.ToString().Trim();
     if (hexStream.Length < 4)
     {
         txtOutput.Text = "";
-        UTF16.Text = "";
+        txtUtf16.Text = "";
         return;
     }
+
     StringBuilder sbText = new StringBuilder();
     StringBuilder sbUtf16 = new StringBuilder();
-    // Process 4‑digit UTF‑16BE tokens
+
+    // Process 4-digit tokens
     for (int i = 0; i + 3 < hexStream.Length; i += 4)
     {
-        string token = hexStream.Substring(i, 4);   // e.g. "0021"
-        ushort index;
-        // Parse UTF‑16BE token as grid index
-        if (!ushort.TryParse(token, System.Globalization.NumberStyles.HexNumber, null, out index))
+        string token = hexStream.Substring(i, 4).ToUpper();
+
+        if (modeReverse)
         {
-            // Bad token → output '?'
-            sbText.Append('?');
-            if (sbUtf16.Length > 0) sbUtf16.Append(' ');
-            sbUtf16.Append("003F");
-            continue;
+            // -------------------------------
+            // MODE A: CEL2CODE (reverse lookup)
+            // -------------------------------
+            int outputIndex = -1;
+
+            for (int cell = 0; cell < 256; cell++)
+            {
+                string cellValue = mapBoxes[cell].Text.Trim().ToUpper();
+                if (cellValue.Length > 0 && cellValue == token)
+                {
+                    outputIndex = cell;
+                    break;
+                }
+            }
+
+            if (outputIndex >= 0)
+            {
+                char outChar = (char)outputIndex;
+                sbText.Append(outChar);
+                if (sbUtf16.Length > 0) sbUtf16.Append(' ');
+                sbUtf16.Append(outputIndex.ToString("X4"));
+            }
+            else
+            {
+                sbText.Append('?');
+                if (sbUtf16.Length > 0) sbUtf16.Append(' ');
+                sbUtf16.Append("003F");
+            }
         }
-        // Out of range → '?'
-        if (index > 255)
+        else
         {
-            sbText.Append('?');
+            // -------------------------------
+            // MODE B: CODE2CEL (direct lookup)
+            // -------------------------------
+            ushort index;
+            if (!ushort.TryParse(token, System.Globalization.NumberStyles.HexNumber, null, out index) ||
+                index > 255)
+            {
+                sbText.Append('?');
+                if (sbUtf16.Length > 0) sbUtf16.Append(' ');
+                sbUtf16.Append("003F");
+                continue;
+            }
+
+            string unicodeHex = mapBoxes[index].Text.Trim();
+            if (unicodeHex.Length == 0)
+            {
+                sbText.Append('?');
+                if (sbUtf16.Length > 0) sbUtf16.Append(' ');
+                sbUtf16.Append("003F");
+                continue;
+            }
+
+            if (unicodeHex.Length < 4)
+                unicodeHex = unicodeHex.PadLeft(4, '0');
+
+            ushort unicodeValue;
+            if (!ushort.TryParse(unicodeHex, System.Globalization.NumberStyles.HexNumber, null, out unicodeValue))
+            {
+                sbText.Append('?');
+                if (sbUtf16.Length > 0) sbUtf16.Append(' ');
+                sbUtf16.Append("003F");
+                continue;
+            }
+
+            char chOut = (char)unicodeValue;
+            sbText.Append(chOut);
             if (sbUtf16.Length > 0) sbUtf16.Append(' ');
-            sbUtf16.Append("003F");
-            continue;
+            sbUtf16.Append(unicodeValue.ToString("X4"));
         }
-        // Lookup Unicode in grid cell
-        string unicodeHex = mapBoxes[index].Text.Trim();
-        if (unicodeHex.Length == 0)
-        {
-            // EMPTY CELL → '?'
-            sbText.Append('?');
-            if (sbUtf16.Length > 0) sbUtf16.Append(' ');
-            sbUtf16.Append("003F");
-            continue;
-        }
-        // Normalize to 4 digits
-        if (unicodeHex.Length < 4)
-            unicodeHex = unicodeHex.PadLeft(4, '0');
-        ushort unicodeValue;
-        if (!ushort.TryParse(unicodeHex, System.Globalization.NumberStyles.HexNumber, null, out unicodeValue))
-        {
-            // Bad Unicode → '?'
-            sbText.Append('?');
-            if (sbUtf16.Length > 0) sbUtf16.Append(' ');
-            sbUtf16.Append("003F");
-            continue;
-        }
-        // Convert Unicode to char
-        char chOut = (char)unicodeValue;
-        sbText.Append(chOut);
-        if (sbUtf16.Length > 0) sbUtf16.Append(' ');
-        sbUtf16.Append(unicodeValue.ToString("X4"));
     }
+
     txtOutput.Text = sbText.ToString();
-    UTF16.Text = sbUtf16.ToString();
+    txtUtf16.Text = sbUtf16.ToString();
 }
+
 
     [STAThread]
     static void Main()
