@@ -13,6 +13,7 @@ class DecoderGrid : Form
     TextBox txtInput;
     TextBox txtOutput;
     TextBox txtUtf16;
+    Button btnClean;
     Button btnConvert;
     Button btnImport;
     Button btnExport;
@@ -42,6 +43,12 @@ class DecoderGrid : Form
         txtMojibake.Width = 900;
         txtMojibake.Height = 70;
         Controls.Add(txtMojibake);
+        Button btnClean = new Button();
+        btnClean.Text = "Clean";
+        btnClean.Size = new Size(75, 23);
+        btnClean.Location = new Point(920, 33);
+        btnClean.Click += btnClean_Click;
+        Controls.Add(btnClean);
         btnConvert = new Button();
         btnConvert.Text = "To Hex →";
         btnConvert.Location = new Point(920, 50);
@@ -174,6 +181,12 @@ class DecoderGrid : Form
         sb.Append(code.ToString("X4"));
         }
         txtInput.Text = sb.ToString();
+    }
+
+    void btnClean_Click(object sender, EventArgs e)
+    {
+        string washed = ExtractPdfText(txtInput.Text);
+        txtInput.Text = washed;
     }
 
     void BtnConvert_Click(object sender, EventArgs e)
@@ -502,4 +515,5 @@ void Decode()
         Application.Run(new DecoderGrid());
     }
 }
+
 
