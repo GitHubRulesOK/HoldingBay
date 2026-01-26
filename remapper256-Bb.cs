@@ -43,7 +43,7 @@ class DecoderGrid : Form
         txtMojibake.Width = 900;
         txtMojibake.Height = 70;
         Controls.Add(txtMojibake);
-        Button btnClean = new Button();
+        btnClean = new Button();
         btnClean.Text = "Clean";
         btnClean.Size = new Size(75, 23);
         btnClean.Location = new Point(920, 33);
@@ -515,5 +515,6 @@ void Decode()
         Application.Run(new DecoderGrid());
     }
 }
+
 
 
