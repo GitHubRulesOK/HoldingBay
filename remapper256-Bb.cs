@@ -9,49 +9,50 @@ class DecoderGrid : Form
 {
     TextBox[] mapBoxes;          // 256 cells, each 4 hex digits
     Dictionary<byte, char> map;  // 1-byte token -> UTF-16 char
-    TextBox txtMojibake;
+    TextBox UTF8input;
     TextBox txtInput;
     TextBox txtOutput;
-    TextBox txtUtf16;
+    TextBox UTF16;
     Button btnClean;
     Button btnConvert;
     Button btnImport;
     Button btnExport;
     Button btnReset;
+    Button btnMode;
     bool initializing = true;
     public DecoderGrid()
     {
-        Text = "Decoder Grid (16×16, CSV import/export)";
+        Text = "UnEncoder Grid (16×16, CSV import/export)";
         Width = 1024;
         Height = 850;
         StartPosition = FormStartPosition.CenterScreen;
         map = new Dictionary<byte, char>();
         mapBoxes = new TextBox[256];
-        Font mono = new Font("Consolas", 9);
+        Font mono = new Font("Consolas", 10);
         // --- Top: Input / Output ---
-        Label lblMoj = new Label();
-        lblMoj.Text = "Mojibake Input (auto-convert to UTF-16BE hex):";
-        lblMoj.Location = new Point(10, 10);
-        lblMoj.Width = 500;
-        Controls.Add(lblMoj);
-        txtMojibake = new TextBox();
-        txtMojibake.Name = "txtMojibake";
-        txtMojibake.Font = mono;
-        txtMojibake.Multiline = true;
-        txtMojibake.ScrollBars = ScrollBars.Vertical;
-        txtMojibake.Location = new Point(10, 33);
-        txtMojibake.Width = 900;
-        txtMojibake.Height = 70;
-        Controls.Add(txtMojibake);
+        Label lblUTF8input = new Label();
+        lblUTF8input.Text = "Input UTF8 (auto-convert to UTF-16BE Hex):";
+        lblUTF8input.Location = new Point(10, 10);
+        lblUTF8input.Width = 500;
+        Controls.Add(lblUTF8input);
+        UTF8input = new TextBox();
+        UTF8input.Name = "UTF8input";
+        UTF8input.Font = mono;
+        UTF8input.Multiline = true;
+        UTF8input.ScrollBars = ScrollBars.Vertical;
+        UTF8input.Location = new Point(10, 33);
+        UTF8input.Width = 900;
+        UTF8input.Height = 70;
+        Controls.Add(UTF8input);
         btnClean = new Button();
-        btnClean.Text = "Clean";
+        btnClean.Text = "To UTF-8";
         btnClean.Size = new Size(75, 23);
         btnClean.Location = new Point(920, 33);
         btnClean.Click += btnClean_Click;
         Controls.Add(btnClean);
         btnConvert = new Button();
-        btnConvert.Text = "To Hex →";
-        btnConvert.Location = new Point(920, 50);
+        btnConvert.Text = "To Hex-16";
+        btnConvert.Location = new Point(920, 66);
         btnConvert.Click += new EventHandler(BtnConvert_Click);
         Controls.Add(btnConvert);
         Label lblIn = new Label();
@@ -91,15 +92,15 @@ class DecoderGrid : Form
         lblUtf16.Location = new Point(10, 301);
         lblUtf16.Width = 200;
         Controls.Add(lblUtf16);
-        txtUtf16 = new TextBox();
-        txtUtf16.Font = mono;
-        txtUtf16.Multiline = true;
-        txtUtf16.ScrollBars = ScrollBars.Vertical;
-        txtUtf16.Location = new Point(10, 324);
-        txtUtf16.Width = 985;
-        txtUtf16.Height = 70;
-        txtUtf16.ReadOnly = true;
-        Controls.Add(txtUtf16);
+        UTF16 = new TextBox();
+        UTF16.Font = mono;
+        UTF16.Multiline = true;
+        UTF16.ScrollBars = ScrollBars.Vertical;
+        UTF16.Location = new Point(10, 324);
+        UTF16.Width = 985;
+        UTF16.Height = 70;
+        UTF16.ReadOnly = true;
+        Controls.Add(UTF16);
         btnImport = new Button();
         btnImport.Text = "Import CSV…";
         btnImport.Location = new Point(10, 400);
@@ -114,6 +115,11 @@ class DecoderGrid : Form
         btnReset.Text = "Reset to default";
         btnReset.Location = new Point(230, 400);
         btnReset.Click += new EventHandler(BtnReset_Click);
+        Controls.Add(btnReset);
+        btnMode = new Button();
+        btnMode.Text = "Switch Mode";
+        btnMode.Location = new Point(340, 400);
+        btnMode.Click += new EventHandler(BtnMode_Click);
         Controls.Add(btnReset);
         // --- Grid: 16×16 UTF-16 hex cells ---
         int gridTop = 430;
@@ -161,16 +167,16 @@ class DecoderGrid : Form
         }
         for (int i = 0; i < 256; i++)
         {
-        //    if (i >= 0x20)
-        //        mapBoxes[i].Text = i.ToString("X4");
-        //    else
+            if (i >= 0x0)
+                mapBoxes[i].Text = i.ToString("X4");
+            else
                 mapBoxes[i].Text = "";
         }
         initializing = false;
         UpdateMapping();
     }
 
-    void ConvertMojibakeToHex(string input)
+    void ConvertUTF8inputToHex(string input)
     {
     StringBuilder sb = new StringBuilder();
         foreach (char ch in input)
@@ -185,16 +191,16 @@ class DecoderGrid : Form
 
     void btnClean_Click(object sender, EventArgs e)
     {
-        string washed = ExtractPdfText(txtInput.Text);
-        txtInput.Text = washed;
+        string cleaned = CleanPdfTextMixed(UTF8input.Text);
+        UTF8input.Text = cleaned;
     }
 
     void BtnConvert_Click(object sender, EventArgs e)
     {
-        if (string.IsNullOrEmpty(txtMojibake.Text))
+        if (string.IsNullOrEmpty(UTF8input.Text))
         return;
         StringBuilder sb = new StringBuilder();
-        foreach (char ch in txtMojibake.Text)
+        foreach (char ch in UTF8input.Text)
         {
             ushort code = (ushort)ch;
             if (sb.Length > 0)
@@ -209,7 +215,7 @@ class DecoderGrid : Form
         initializing = true;
         for (int i = 0; i < 256; i++)
         {
-            if (i >= 0x20)
+            if (i >= 0x0)
                 mapBoxes[i].Text = i.ToString("X4");
             else
                 mapBoxes[i].Text = "";
@@ -325,6 +331,231 @@ class DecoderGrid : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
+
+public static string CleanPdfTextMixed(string raw)
+{
+    if (string.IsNullOrEmpty(raw))
+        return "";
+
+    StringBuilder result = new StringBuilder();
+    int i = 0;
+    int len = raw.Length;
+
+    const int kerningSpaceThreshold = -200; // |value| >= 200 → space
+
+    while (i < len)
+    {
+        char ch = raw[i];
+
+        // Standalone or inline hexstring <....> (UTF-16BE)
+        if (ch == '<')
+        {
+            string hexText = ReadHexUtf16(raw, ref i);
+            if (hexText.Length > 0)
+                result.Append(hexText);
+            continue;
+        }
+
+        // Text array [ ... ]TJ
+        if (ch == '[')
+        {
+            i++;
+            bool anyTextInThisArray = false;
+
+            while (i < len && raw[i] != ']')
+            {
+                // Skip whitespace
+                while (i < len && char.IsWhiteSpace(raw[i]))
+                    i++;
+
+                if (i >= len || raw[i] == ']')
+                    break;
+
+                // Literal string (...)
+                if (raw[i] == '(')
+                {
+                    i++;
+                    string literal = ReadLiteralString(raw, ref i);
+                    if (literal.Length > 0)
+                    {
+                        result.Append(literal);
+                        anyTextInThisArray = true;
+                    }
+                    continue;
+                }
+
+                // Hexstring inside array <....>
+                if (raw[i] == '<')
+                {
+                    string hexText = ReadHexUtf16(raw, ref i);
+                    if (hexText.Length > 0)
+                    {
+                        result.Append(hexText);
+                        anyTextInThisArray = true;
+                    }
+                    continue;
+                }
+
+                // Kerning number
+                if (raw[i] == '-' || char.IsDigit(raw[i]))
+                {
+                    int start = i;
+                    if (raw[i] == '-')
+                        i++;
+
+                    while (i < len && char.IsDigit(raw[i]))
+                        i++;
+
+                    string numStr = raw.Substring(start, i - start);
+                    int val;
+                    if (int.TryParse(numStr, out val))
+                    {
+                        if (val <= kerningSpaceThreshold)
+                            result.Append(' ');
+                    }
+
+                    continue;
+                }
+
+                // Anything else inside array: skip
+                i++;
+            }
+
+            // Skip closing ']'
+            if (i < len && raw[i] == ']')
+                i++;
+
+            // Skip trailing TJ/Tj
+            while (i < len && char.IsWhiteSpace(raw[i]))
+                i++;
+            if (i + 1 < len &&
+                raw[i] == 'T' &&
+                (raw[i + 1] == 'J' || raw[i + 1] == 'j'))
+            {
+                i += 2;
+            }
+
+            if (anyTextInThisArray)
+                result.Append("\r\n");
+
+            continue;
+        }
+
+        // Not array, not hexstring: skip
+        i++;
+    }
+
+    return result.ToString();
+}
+
+private static string ReadLiteralString(string raw, ref int i)
+{
+    StringBuilder sb = new StringBuilder();
+    int len = raw.Length;
+
+    while (i < len && raw[i] != ')')
+    {
+        char c = raw[i];
+
+        if (c == '\\')
+        {
+            int start = i + 1;
+
+            // Octal \ddd
+            if (start < len &&
+                raw[start] >= '0' && raw[start] <= '7')
+            {
+                int octLen = 0;
+                while (start + octLen < len &&
+                       octLen < 3 &&
+                       raw[start + octLen] >= '0' &&
+                       raw[start + octLen] <= '7')
+                {
+                    octLen++;
+                }
+
+                string oct = raw.Substring(start, octLen);
+                int val = Convert.ToInt32(oct, 8);
+                sb.Append((char)val);
+                i += 1 + octLen;
+                continue;
+            }
+
+            // \r
+            if (start < len && raw[start] == 'r')
+            {
+                sb.Append('\r');
+                i += 2;
+                continue;
+            }
+
+            // \n
+            if (start < len && raw[start] == 'n')
+            {
+                sb.Append('\n');
+                i += 2;
+                continue;
+            }
+
+            // Escaped literal char: \( \) \\
+            if (start < len)
+            {
+                sb.Append(raw[start]);
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
+        }
+
+        sb.Append(c);
+        i++;
+    }
+
+    if (i < len && raw[i] == ')')
+        i++;
+
+    return sb.ToString();
+}
+
+private static string ReadHexUtf16(string raw, ref int i)
+{
+    // raw[i] == '<' on entry
+    int len = raw.Length;
+    i++; // skip '<'
+
+    StringBuilder hex = new StringBuilder();
+    while (i < len && raw[i] != '>')
+    {
+        char h = raw[i];
+
+        if ((h >= '0' && h <= '9') ||
+            (h >= 'A' && h <= 'F') ||
+            (h >= 'a' && h <= 'f'))
+        {
+            hex.Append(h);
+        }
+
+        i++;
+    }
+
+    if (i < len && raw[i] == '>')
+        i++; // skip '>'
+
+    if (hex.Length == 0 || (hex.Length % 4) != 0)
+        return "";
+
+    StringBuilder sb = new StringBuilder();
+    for (int p = 0; p < hex.Length; p += 4)
+    {
+        string unit = hex.ToString(p, 4);
+        int code = Convert.ToInt32(unit, 16);
+        sb.Append((char)code); // includes 0003, 000D, 000A, etc.
+    }
+
+    return sb.ToString();
+}
 
 public static string ExtractPdfText(string raw)
 {
@@ -460,13 +691,13 @@ void UpdateMapping()
 
 void Decode()
 {
-    if (txtInput == null || txtOutput == null || txtUtf16 == null)
+    if (txtInput == null || txtOutput == null || UTF16 == null)
         return;
     string raw = txtInput.Text;
     if (string.IsNullOrWhiteSpace(raw))
     {
         txtOutput.Text = "";
-        txtUtf16.Text = "";
+        UTF16.Text = "";
         return;
     }
     // Clean input: remove < > whitespace etc.
@@ -481,7 +712,7 @@ void Decode()
     if (hexStream.Length < 4)
     {
         txtOutput.Text = "";
-        txtUtf16.Text = "";
+        UTF16.Text = "";
         return;
     }
     StringBuilder sbText = new StringBuilder();
@@ -537,7 +768,7 @@ void Decode()
         sbUtf16.Append(unicodeValue.ToString("X4"));
     }
     txtOutput.Text = sbText.ToString();
-    txtUtf16.Text = sbUtf16.ToString();
+    UTF16.Text = sbUtf16.ToString();
 }
 
     [STAThread]
