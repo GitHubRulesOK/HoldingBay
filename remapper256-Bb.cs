@@ -328,44 +328,59 @@ class DecoderGrid : Form
 
 public static string ExtractPdfText(string raw)
 {
-    if (raw == null)
+    if (string.IsNullOrEmpty(raw))
         return "";
-    StringBuilder output = new StringBuilder();
-    int len = raw.Length;
+    StringBuilder result = new StringBuilder();
     int i = 0;
+    int len = raw.Length;
     while (i < len)
     {
         char ch = raw[i];
-        // HEXSTRING <...>
+        // HEXSTRING < ... >
         if (ch == '<')
         {
             i++;
+            StringBuilder hex = new StringBuilder();
             while (i < len && raw[i] != '>')
             {
                 char h = raw[i];
+                // collect only hex digits
                 if ((h >= '0' && h <= '9') ||
                     (h >= 'A' && h <= 'F') ||
                     (h >= 'a' && h <= 'f'))
                 {
-                    output.Append(h);
+                    hex.Append(h);
                 }
                 i++;
             }
-            i++; // skip '>'
+            // skip '>'
+            if (i < len && raw[i] == '>')
+                i++;
+            // if odd number of hex digits, ignore (invalid-ish but allowed by Adobe Spec!)
+            if (hex.Length % 4 == 0 && hex.Length > 0)
+            {
+                // decode UTF‑16BE pairs
+                for (int p = 0; p < hex.Length; p += 4)
+                {
+                    string unit = hex.ToString(p, 4);
+                    int code = Convert.ToInt32(unit, 16);
+                    result.Append((char)code);
+                }
+            }
             continue;
         }
-        // LITERAL STRING (...)
+        // LITERAL STRING ( ... )
         if (ch == '(')
         {
             i++;
             while (i < len && raw[i] != ')')
             {
                 char c = raw[i];
+                // ESCAPES
                 if (c == '\\')
                 {
                     int start = i + 1;
-
-                    // OCTAL \###
+                    // octal \ddd
                     if (start < len &&
                         raw[start] >= '0' && raw[start] <= '7')
                     {
@@ -379,14 +394,28 @@ public static string ExtractPdfText(string raw)
                         }
                         string oct = raw.Substring(start, octLen);
                         int val = Convert.ToInt32(oct, 8);
-                        output.Append(val.ToString("X4"));
+                        result.Append((char)val);
                         i += 1 + octLen;
                         continue;
                     }
-                    // simple escapes
+                    // \r
+                    if (start < len && raw[start] == 'r')
+                    {
+                        result.Append('\r');
+                        i += 2;
+                        continue;
+                    }
+                    // \n
+                    if (start < len && raw[start] == 'n')
+                    {
+                        result.Append('\n');
+                        i += 2;
+                        continue;
+                    }
+                    // escaped literal char
                     if (start < len)
                     {
-                        output.Append(((int)raw[start]).ToString("X4"));
+                        result.Append(raw[start]);
                         i += 2;
                         continue;
                     }
@@ -394,17 +423,20 @@ public static string ExtractPdfText(string raw)
                     continue;
                 }
                 // normal literal char
-                output.Append(((int)c).ToString("X4"));
+                result.Append(c);
                 i++;
             }
-            i++; // skip ')'
+            // skip ')'
+            if (i < len && raw[i] == ')')
+                i++;
             continue;
         }
         // ignore everything else
         i++;
     }
-    return output.ToString();
+    return result.ToString();
 }
+
 
 void UpdateMapping()
 {
@@ -515,6 +547,7 @@ void Decode()
         Application.Run(new DecoderGrid());
     }
 }
+
 
 
 
