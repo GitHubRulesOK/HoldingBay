@@ -317,115 +317,81 @@ public static string ExtractPdfText(string raw)
 {
     if (raw == null)
         return "";
-
     StringBuilder output = new StringBuilder();
     int len = raw.Length;
-
     int i = 0;
-    int mode = 0; // 0 = outside, 1 = hex <>, 2 = literal ()
-
     while (i < len)
     {
         char ch = raw[i];
-
-        // MODE 0 — OUTSIDE ANY STRING
-        if (mode == 0)
+        // HEXSTRING <...>
+        if (ch == '<')
         {
-            if (ch == '<')
-            {
-                mode = 1;
-                i++;
-                continue;
-            }
-            if (ch == '(')
-            {
-                mode = 2;
-                i++;
-                continue;
-            }
             i++;
-            continue;
-        }
-
-        // MODE 1 — INSIDE <HEXSTRING>
-        if (mode == 1)
-        {
-            if (ch == '>')
+            while (i < len && raw[i] != '>')
             {
-                mode = 0;
-                i++;
-                continue;
-            }
-
-            // accept only hex digits
-            if ((ch >= '0' && ch <= '9') ||
-                (ch >= 'A' && ch <= 'F') ||
-                (ch >= 'a' && ch <= 'f'))
-            {
-                output.Append(ch);
-            }
-
-            i++;
-            continue;
-        }
-
-        // MODE 2 — INSIDE (LITERAL STRING)
-        if (mode == 2)
-        {
-            if (ch == '\\')
-            {
-                // OCTAL ESCAPE
-                int start = i + 1;
-                int octLen = 0;
-
-                while (start + octLen < len &&
-                       octLen < 3 &&
-                       raw[start + octLen] >= '0' &&
-                       raw[start + octLen] <= '7')
+                char h = raw[i];
+                if ((h >= '0' && h <= '9') ||
+                    (h >= 'A' && h <= 'F') ||
+                    (h >= 'a' && h <= 'f'))
                 {
-                    octLen++;
+                    output.Append(h);
                 }
-
-                if (octLen > 0)
+                i++;
+            }
+            i++; // skip '>'
+            continue;
+        }
+        // LITERAL STRING (...)
+        if (ch == '(')
+        {
+            i++;
+            while (i < len && raw[i] != ')')
+            {
+                char c = raw[i];
+                if (c == '\\')
                 {
-                    string oct = raw.Substring(start, octLen);
-                    int value = Convert.ToInt32(oct, 8);
-                    output.Append(value.ToString("X2"));
-                    i += 1 + octLen;
+                    int start = i + 1;
+
+                    // OCTAL \###
+                    if (start < len &&
+                        raw[start] >= '0' && raw[start] <= '7')
+                    {
+                        int octLen = 0;
+                        while (start + octLen < len &&
+                               octLen < 3 &&
+                               raw[start + octLen] >= '0' &&
+                               raw[start + octLen] <= '7')
+                        {
+                            octLen++;
+                        }
+                        string oct = raw.Substring(start, octLen);
+                        int val = Convert.ToInt32(oct, 8);
+                        output.Append(val.ToString("X4"));
+                        i += 1 + octLen;
+                        continue;
+                    }
+                    // simple escapes
+                    if (start < len)
+                    {
+                        output.Append(((int)raw[start]).ToString("X4"));
+                        i += 2;
+                        continue;
+                    }
+                    i++;
                     continue;
                 }
-
-                // ESCAPED CHARACTERS: \( \) \\
-                if (start < len)
-                {
-                    char esc = raw[start];
-                    int val = (int)esc;
-                    output.Append(val.ToString("X2"));
-                    i += 2;
-                    continue;
-                }
-
+                // normal literal char
+                output.Append(((int)c).ToString("X4"));
                 i++;
-                continue;
             }
-
-            if (ch == ')')
-            {
-                mode = 0;
-                i++;
-                continue;
-            }
-
-            // literal character
-            output.Append(((int)ch).ToString("X2"));
-            i++;
+            i++; // skip ')'
             continue;
         }
+        // ignore everything else
+        i++;
     }
-
     return output.ToString();
 }
-
 
 void UpdateMapping()
 {
@@ -536,3 +502,4 @@ void Decode()
         Application.Run(new DecoderGrid());
     }
 }
+
