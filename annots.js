@@ -7,7 +7,7 @@ Usage:
 See defaults below for use of switches.
 */
 
-// --- Argument parsing --- -m=mode is tested as toLowerCase but -a= is Not (i.e. Strict). Fallback for Delete is just "Highlight"
+// --- Argument settings --- -m=mode is tested as toLowerCase but -a= is Not (i.e. Strict). Fallback for Subtype is just "Highlight"
 var mode = "report"; var countOnly = false; var annotSubtype = "Highlight"; var annotSubtypes = null; var blockMode = false; var verbose = false;
 var flateSave = false; var decomSave = false; var firstPage = 1; var lastPage = null; var noSave = false; var outname = null; var pageSpec = null;
 var silent = false; var reportFile = null; var pokeTxt = null; var inname = null; var pdfDirty = false; var totalMatches = 0; var pageFilter = null;
@@ -81,6 +81,7 @@ var classifyLiteral = function(raw){ var lit=String(raw||''); var first=lit.repl
 var padL = function(s,w){ s=(s===null?"null":String(s)); while(s.length<w) s=" "+s; return s; };
 var padR = function(s,w){ s=(s===null?"null":String(s)); while(s.length<w) s+=" "; return s; };
 function safePDF(v) { return (v === null || v === undefined) ? "null" : ("" + v); }
+
 function safePageCount(doc){ if(!doc) return 1; if(typeof doc.countPages==='function') return doc.countPages(); return 1; }
 var pages = safePageCount(doc);
 /* ---------------
