@@ -1,8 +1,8 @@
 "use strict";
 /*
 Usage:
-  mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e] [-f=N] [-l=N]
-                       [-n] [-o="FILE"] [-p=r,a,n-g,e] [-q] [-r="FILE"] [-t | -t="Text"] input.pdf
+  mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e] [-n]
+                       [-o="FILE"] [-p=r,a,n-g,e] [-q] [-r="FILE"] [-t | -t="Text"] input.pdf
 
 See defaults below for use of switches.
 */
@@ -25,8 +25,6 @@ for (var i = 0; i < scriptArgs.length; i++) {
 // -c only used by addAnot.js
   else if (arg === "-d") flateSave = true;
   else if (arg === "-e") decomSave = true;
-  else if (arg.indexOf("-f=") === 0) firstPage = parseInt(arg.slice(3), 10);
-  else if (arg.indexOf("-l=") === 0) lastPage = parseInt(arg.slice(3), 10);
   else if (arg === "-n") noSave = true;
   else if (arg.indexOf("-o=") === 0) outname = arg.slice(3);
   else if (arg.indexOf("-p=") === 0) pageSpec = arg.slice(3);   // NEW
@@ -37,7 +35,7 @@ for (var i = 0; i < scriptArgs.length; i++) {
   else if (arg.indexOf("-t=") === 0) pokeTxt = arg.slice(3);
   else if (arg[0] !== "-") inname = arg;
 }
-if (!inname) { print(" Usage: mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e] [-f=N] [-l=N]\n" +
+if (!inname) { print(" Usage: mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e]\n" +
 "                             [-n] [-o=\"FILE\"] [-p=r,a,n-g,e] [-q] [-r=\"FILE\"] [-t | -t=\"text\"]  input.pdf\n" +
 " Modes:\n" +
 "   -m=         MODE (Default=) report | DelAnnots | DelLinks (insensitive) Page(s) can be filtered by subType(,s)\n" +
@@ -48,11 +46,9 @@ if (!inname) { print(" Usage: mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S
 " Flags:\n" +
 "   -d          save deflated objects in PDF outputs (images and fonts will be compacted)\n" +
 "   -e          save expanded objects in PDF outputs (images and fonts will be compacted)\n" +
-"   -f=##       first (default 1-based) page to process from\n" +
-"   -l=##       last (default to final) page to process upto\n" +
 "   -n          no-save (don't save cleaned PDF nor a list TXT)\n" +
 "   -o=\"FILE\"   output PDF (default: input-changed.pdf)\n" +
-"   -p=\"LIST\"   Process Pages Range (default: All see -f= -l= for simpler ranges)\n" +
+"   -p=\"LIST\"   Process Pages Range (default without = All)\n" +
 "   -q          silent (no console output except errors)\n" +
 "   -r=\"FILE\"   write report to TXT (default: input-list.txt)\n" +
 "   -t          embed underlying Text string into annotation\n" +
@@ -64,70 +60,266 @@ if (!inname) { print(" Usage: mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S
      LOAD PDF
 ----------------*/
 var doc = mupdf.PDFDocument(inname);
-if (!doc.isPDF()) throw new Error("Not a PDF"); if (doc.needsPassword()) throw new Error("Encrypted PDF");
+if (!doc.isPDF()) throw new Error("Not a PDF");
+if (doc.needsPassword()) throw new Error("Encrypted PDF");
+var pageCount = doc.countPages();
+
 // PDF active NOW we can collect results
-var txtOut = new Buffer(); var defaultReportFile = inname.replace(/\.pdf$/i, "") + "-list.txt";
-if (mode === "delannots" || mode === "dellinks") defaultReportFile = inname.replace(/\.pdf$/i, "") + "-changed.txt";
+var txtOut = new Buffer();
+var defaultReportFile = inname.replace(/\.pdf$/i, "") + "-list.txt";
+if (mode === "delannots" || mode === "dellinks")
+    defaultReportFile = inname.replace(/\.pdf$/i, "") + "-changed.txt";
 var defaultOutPdf = inname.replace(/\.pdf$/i, "") + "-changed.pdf";
-if (verbose) { print("DEBUG: inname = " + inname + ", mode = " + mode + ", defaultReportFile = " + defaultReportFile); }
+
+// PDF is valid — NOW it is safe to continue
+var pageCount = doc.countPages();
+/* ---------------
+ Page selection
+----------------*/
+// pageSpec already comes from argument parsing:
+//   else if (arg.indexOf("-p=") === 0) pageSpec = arg.slice(3);
+// If user gave no -p=, default to "1-end"
+if (!pageSpec) pageSpec = "1-" + pageCount;
+// parsePageS is a LATER function declaration, so it is hoisted
+var pageMap = parsePageS(pageSpec, pageCount);
+
+/* ---------------
+ debug a few args 
+----------------*/
+if (verbose) {
+    print("DEBUG: inname = " + inname +
+          ", mode = " + mode +
+          ", pageCount = " + pageCount +
+          ", pageSpec = " + pageSpec +
+          ", pageMap = " + pageMap +
+          ", defaultReportFile = " + defaultReportFile);
+}
+
 /* ---------------
  Helper functions
 ----------------*/
-var hexToBytes = function(hex){ var H='0123456789ABCDEF'; var b=[]; hex=String(hex||'').toUpperCase(); for(var i=0;i<hex.length;i+=2){ var hi=H.indexOf(hex.charAt(i)); var lo=H.indexOf(hex.charAt(i+1)); if(hi<0) hi=0; if(lo<0) lo=0; b.push(((hi<<4)|lo)&0xFF); } return b; };
-var hexTXTtoUTF = function(rawOrHex){ var literal=String(rawOrHex||''); var hex = (literal.indexOf('<')!==-1) ? literal.replace(/^[\s<]+|[\s>]+$/g,'').replace(/\s+/g,'').toUpperCase() : String(rawOrHex||'').toUpperCase(); if(hex.slice(0,4)==='FEFF') hex=hex.slice(4); var bytes=hexToBytes(hex); var utf16=''; for(var j=0;j+1<bytes.length;j+=2) utf16+=String.fromCharCode((bytes[j]<<8)|bytes[j+1]); utf16=utf16.replace(/^\uFEFF+/,''); var low=''; for(var j2=0;j2+1<bytes.length;j2+=2) low+=String.fromCharCode(bytes[j2+1]); return { hex: hex, bytes: bytes, utf16: utf16, low: low }; };
-var unescapePdfString = function(s){ s=String(s||''); var out=''; for(var i=0;i<s.length;i++){ var ch=s.charAt(i); if(ch.charCodeAt(0)!==92){ out+=ch; continue; } i++; if(i>=s.length){ out+=String.fromCharCode(92); break; } var esc=s.charAt(i); var ec=esc.charCodeAt(0); if(ec===110){ out+=String.fromCharCode(10); continue; } if(ec===114){ out+=String.fromCharCode(13); continue; } if(ec===116){ out+=String.fromCharCode(9); continue; } if(ec===98){ out+=String.fromCharCode(8); continue; } if(ec===102){ out+=String.fromCharCode(12); continue; } if(ec===40){ out+='('; continue; } if(ec===41){ out+=')'; continue; } if(ec===92){ out+=String.fromCharCode(92); continue; } if(ec>=48 && ec<=55){ var oct=esc; for(var k=0;k<2;k++){ if(i+1<s.length){ var nx=s.charAt(i+1); var nc=nx.charCodeAt(0); if(nc>=48 && nc<=55){ i++; oct+=nx; continue; } } break; } var code=0; for(var m=0;m<oct.length;m++) code=(code<<3)+(oct.charCodeAt(m)-48); out+=String.fromCharCode(code&0xFF); continue; } out+=esc; } return out; };
-var csvEsc = function(s){ return '"' + String(s||'').replace(/"/g,'""') + '"'; };
-var classifyLiteral = function(raw){ var lit=String(raw||''); var first=lit.replace(/^\s+/,'').charAt(0); if(first==='<'){ var r=hexTXTtoUTF(lit); if(r.utf16 && r.utf16.length) return { type:'HEX_UTF16', decoded:r.utf16, hex:r.hex, low:r.low }; if(r.low && r.low.length) return { type:'ANSI_LOWBYTE', decoded:r.low, hex:r.hex, low:r.low }; return { type:'OTHER_HEX', decoded:r.hex, hex:r.hex }; } var plain=unescapePdfString(lit); var isAscii=true; for(var i=0;i<plain.length;i++){ var c=plain.charCodeAt(i); if(c===0 || c<9){ isAscii=false; break; } } return { type: isAscii ? 'PLAIN_ASCII' : 'UNKNOWN', decoded: plain }; };
-var padL = function(s,w){ s=(s===null?"null":String(s)); while(s.length<w) s=" "+s; return s; };
-var padR = function(s,w){ s=(s===null?"null":String(s)); while(s.length<w) s+=" "; return s; };
-function safePDF(v) { return (v === null || v === undefined) ? "null" : ("" + v); }
+var hexToBytes = function(hex){
+    var H='0123456789ABCDEF';
+    var b=[];
+    hex=String(hex||'').toUpperCase();
+    for(var i=0;i<hex.length;i+=2){
+        var hi=H.indexOf(hex.charAt(i));
+        var lo=H.indexOf(hex.charAt(i+1));
+        if(hi<0) hi=0;
+        if(lo<0) lo=0;
+        b.push(((hi<<4)|lo)&0xFF);
+    }
+    return b;
+};
 
-function safePageCount(doc){ if(!doc) return 1; if(typeof doc.countPages==='function') return doc.countPages(); return 1; }
-var pages = safePageCount(doc);
+var hexTXTtoUTF = function(rawOrHex){
+    var literal=String(rawOrHex||'');
+    var hex = (literal.indexOf('<')!==-1)
+        ? literal.replace(/^[\s<]+|[\s>]+$/g,'').replace(/\s+/g,'').toUpperCase()
+        : String(rawOrHex||'').toUpperCase();
+    if(hex.slice(0,4)==='FEFF') hex=hex.slice(4);
+    var bytes=hexToBytes(hex);
+    var utf16='';
+    for(var j=0;j+1<bytes.length;j+=2)
+        utf16+=String.fromCharCode((bytes[j]<<8)|bytes[j+1]);
+    utf16=utf16.replace(/^\uFEFF+/,'');
+    var low='';
+    for(var j2=0;j2+1<bytes.length;j2+=2)
+        low+=String.fromCharCode(bytes[j2+1]);
+    return { hex: hex, bytes: bytes, utf16: utf16, low: low };
+};
+
+var unescapePdfString = function(s){
+    s=String(s||'');
+    var out='';
+    for(var i=0;i<s.length;i++){
+        var ch=s.charAt(i);
+        if(ch.charCodeAt(0)!==92){ // '\'
+            out+=ch;
+            continue;
+        }
+        i++;
+        if(i>=s.length){
+            out+=String.fromCharCode(92);
+            break;
+        }
+        var esc=s.charAt(i);
+        var ec=esc.charCodeAt(0);
+        if(ec===110){ out+=String.fromCharCode(10); continue; } // n
+        if(ec===114){ out+=String.fromCharCode(13); continue; } // r
+        if(ec===116){ out+=String.fromCharCode(9);  continue; } // t
+        if(ec===98){  out+=String.fromCharCode(8);  continue; } // b
+        if(ec===102){ out+=String.fromCharCode(12); continue; } // f
+        if(ec===40){  out+='(';  continue; }
+        if(ec===41){  out+=')';  continue; }
+        if(ec===92){  out+=String.fromCharCode(92); continue; }
+        if(ec>=48 && ec<=55){
+            var oct=esc;
+            for(var k=0;k<2;k++){
+                if(i+1<s.length){
+                    var nx=s.charAt(i+1);
+                    var nc=nx.charCodeAt(0);
+                    if(nc>=48 && nc<=55){
+                        i++;
+                        oct+=nx;
+                        continue;
+                    }
+                }
+                break;
+            }
+            var code=0;
+            for(var m=0;m<oct.length;m++)
+                code=(code<<3)+(oct.charCodeAt(m)-48);
+            out+=String.fromCharCode(code&0xFF);
+            continue;
+        }
+        out+=esc;
+    }
+    return out;
+};
+
+var csvEsc = function(s){
+    return '"' + String(s||'').replace(/"/g,'""') + '"';
+};
+
+var classifyLiteral = function(raw){
+    var lit=String(raw||'');
+    var first=lit.replace(/^\s+/,'').charAt(0);
+    if(first==='<'){
+        var r=hexTXTtoUTF(lit);
+        if(r.utf16 && r.utf16.length)
+            return { type:'HEX_UTF16', decoded:r.utf16, hex:r.hex, low:r.low };
+        if(r.low && r.low.length)
+            return { type:'ANSI_LOWBYTE', decoded:r.low, hex:r.hex, low:r.low };
+        return { type:'OTHER_HEX', decoded:r.hex, hex:r.hex };
+    }
+    var plain=unescapePdfString(lit);
+    var isAscii=true;
+    for(var i=0;i<plain.length;i++){
+        var c=plain.charCodeAt(i);
+        if(c===0 || c<9){ isAscii=false; break; }
+    }
+    return { type: isAscii ? 'PLAIN_ASCII' : 'UNKNOWN', decoded: plain };
+};
+
+var padL = function(s,w){
+    s=(s===null?"null":String(s));
+    while(s.length<w) s=" "+s;
+    return s;
+};
+
+var padR = function(s,w){
+    s=(s===null?"null":String(s));
+    while(s.length<w) s+=" ";
+    return s;
+};
+
+function safePDF(v) {
+    return (v === null || v === undefined) ? "null" : ("" + v);
+}
+
+
 /* ---------------
  Parse page-range
- (e.g. -p=1,2,5-7) 
+ Left-to-right refinement:
+   - ranges add pages
+   - odd/even filter current set
+   - single numbers always add
+   - "end" means maxPages
 ----------------*/
 function parsePageS(spec, maxPages) {
-    if (!spec) return null;
-    var map = {}; var parts = spec.split(",");
+    var map = {};
+    if (!spec) {
+        // default: all pages
+        for (var p = 1; p <= maxPages; p++) map[p] = true;
+        return map;
+    }
+
+    var parts = String(spec).split(",");
+    // working set as a map
+    var current = {};
+
     for (var i = 0; i < parts.length; i++) {
         var part = parts[i].trim();
         if (!part) continue;
+
+        var low = part.toLowerCase();
+
+        // odd / even refine current set if non-empty, otherwise global
+        if (low === "odd" || low === "even") {
+            var wantOdd = (low === "odd");
+            // if current is empty, start from full range
+            var base = current;
+            var hasAny = false;
+            for (var k in base) { hasAny = true; break; }
+            if (!hasAny) {
+                base = {};
+                for (var p2 = 1; p2 <= maxPages; p2++) base[p2] = true;
+            }
+            var refined = {};
+            for (var k2 in base) {
+                var n = k2|0;
+                if (n<1 || n>maxPages) continue;
+                if (wantOdd && (n % 2 === 1)) refined[n] = true;
+                if (!wantOdd && (n % 2 === 0)) refined[n] = true;
+            }
+            current = refined;
+            continue;
+        }
+
+        // range or single
         var dash = part.indexOf("-");
         if (dash > 0) {
-            var a = parseInt(part.slice(0, dash), 10);
-            var b = parseInt(part.slice(dash + 1), 10);
+            var aStr = part.slice(0, dash).trim();
+            var bStr = part.slice(dash + 1).trim().toLowerCase();
+            var a = parseInt(aStr, 10);
+            var b;
+            if (bStr === "end") {
+                b = maxPages;
+            } else {
+                b = parseInt(bStr, 10);
+                if (isNaN(b)) b = maxPages;
+            }
             if (isNaN(a)) continue;
-            if (isNaN(b)) b = maxPages;
             if (a > b) { var t=a; a=b; b=t; }
             for (var p = a; p <= b; p++) {
-                if (p>=1 && p<=maxPages) map[p] = true;
+                if (p>=1 && p<=maxPages) current[p] = true;
             }
         } else {
-            var p = parseInt(part, 10);
-            if (!isNaN(p) && p>=1 && p<=maxPages) map[p] = true;
+            var n = parseInt(part, 10);
+            if (!isNaN(n) && n>=1 && n<=maxPages) current[n] = true;
         }
     }
-    return map;
+
+    // if nothing selected, default to all
+    var has = false;
+    for (var k3 in current) { has = true; break; }
+    if (!has) {
+        for (var p3 = 1; p3 <= maxPages; p3++) current[p3] = true;
+    }
+
+    return current;
 }
+
 /* ---------------
    Page walker
 ----------------*/
-function forEachPage(doc, fn) {
-    var n = safePageCount(doc);
-    for (var p = 0; p < n; p++) {
-        var pageNum = p + 1;
-        if (pageFilter && !pageFilter[pageNum]) continue;
-        if (pageNum < firstPage) continue;
-        if (lastPage && pageNum > lastPage) continue;
+function forEachPage(doc, pageMap, fn) {
+    for (var p = 1; p <= pageCount; p++) {
+        if (!pageMap[p]) continue;
+
         var page = null;
-        try { page = doc.loadPage(p); } catch(e) { continue; }
+        try { page = doc.loadPage(p - 1); }
+        catch(e) { continue; }
+
         if (!page) continue;
-        fn(page, p);
+
+        fn(page, p - 1); // p-1 = zero-based index
+
         if (page.free) page.free();
     }
 }
+
 /* ---------------
  Annotation walker
 ----------------*/
@@ -254,7 +446,6 @@ function outputHl2txtRow(page, pg, j, annotObj, verbose) {
 ----------------*/
 function runReportMode(doc, pageFilter, verbose) {
     var total = 0;
-    var pageCount = doc.countPages();
     if (verbose) { print("DEBUG: runReportMode mode = " + mode + ", pageCount = " + pageCount + ", page(s) = " + pageFilter + ", doc [object ...] = " + doc); }
     for (var pg = 0; pg < pageCount; pg++) {
 
