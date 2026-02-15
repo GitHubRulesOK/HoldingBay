@@ -1,7 +1,7 @@
 "use strict";
 /*
 Usage:
-  mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e] [-n]
+  mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S..,S..] [-b] [-v] [-d] [-e] [-f] [-n]
                        [-o="FILE"] [-p=r,a,n-g,e] [-q] [-r="FILE"] [-t | -t="Text"] input.pdf
 
 See defaults below for use of switches.
@@ -9,7 +9,7 @@ See defaults below for use of switches.
 
 // --- Argument settings --- -m=mode is tested as toLowerCase but -a= is Not (i.e. Strict). Fallback for Subtype is just "Highlight"
 var mode = "report"; var countOnly = false; var annotSubtype = "Highlight"; var annotSubtypes = null; var blockMode = false; var verbose = false;
-var flateSave = false; var decomSave = false; var firstPage = 1; var lastPage = null; var noSave = false; var outname = null; var pageSpec = null;
+var flateSave = false; var Debug = false; var decomSave = false; var firstPage = 1; var lastPage = null; var noSave = false; var outname = null; var pageSpec = null;
 var silent = false; var reportFile = null; var pokeTxt = null; var inname = null; var pdfDirty = false; var totalMatches = 0; var pageFilter = null;
 
 for (var i = 0; i < scriptArgs.length; i++) {
@@ -23,8 +23,9 @@ for (var i = 0; i < scriptArgs.length; i++) {
   else if (arg === "-b") blockMode = true;
   else if (arg === "-v") verbose = true;
 // -c only used by addAnot.js
-  else if (arg === "-d") flateSave = true;
+  else if (arg === "-d") Debug = true;
   else if (arg === "-e") decomSave = true;
+  else if (arg === "-f") flateSave = true;
   else if (arg === "-n") noSave = true;
   else if (arg.indexOf("-o=") === 0) outname = arg.slice(3);
   else if (arg.indexOf("-p=") === 0) pageSpec = arg.slice(3);   // NEW
@@ -42,10 +43,11 @@ if (!inname) { print(" Usage: mutool run annots.js [-m=MODE] [-#] [-a=Subtype[,S
 "   -#          N/A (count still to be defined)\n" +
 "   -a=         subType filter (e.g. Highlight,StrikeOut,Link) no leading slash. Reports all in page(s)\n" +
 "   -b          use block mode for report and/or console output (single lines for grepping)\n" +
-"   -v          verbose debugging outputs, use with caution on large files (limit page range)\n" +
+"   -v          more verbose outputs, use with caution on large files (limit page range)\n" +
 " Flags:\n" +
-"   -d          save deflated objects in PDF outputs (images and fonts will be compacted)\n" +
+"   -d          show debug flow at console\n" +
 "   -e          save expanded objects in PDF outputs (images and fonts will be compacted)\n" +
+"   -f          save flated objects in PDF outputs (images and fonts will be compacted)\n" +
 "   -n          no-save (don't save cleaned PDF nor a list TXT)\n" +
 "   -o=\"FILE\"   output PDF (default: input-changed.pdf)\n" +
 "   -p=\"LIST\"   Process Pages Range (default without = All)\n" +
@@ -86,7 +88,7 @@ var pageMap = parsePageS(pageSpec, pageCount);
 /* ---------------
  debug a few args 
 ----------------*/
-if (verbose) {
+if (Debug) {
     print("DEBUG: inname = " + inname +
           ", mode = " + mode +
           ", pageCount = " + pageCount +
@@ -446,63 +448,63 @@ function outputHl2txtRow(page, pg, j, annotObj, verbose) {
 ----------------*/
 function runReportMode(doc, pageFilter, verbose) {
     var total = 0;
-    if (verbose) { print("DEBUG: runReportMode mode = " + mode + ", pageCount = " + pageCount + ", page(s) = " + pageFilter + ", doc [object ...] = " + doc); }
-    for (var pg = 0; pg < pageCount; pg++) {
+    if (Debug) { print("DEBUG: runReportMode mode = " + mode + ", pageCount = " + pageCount + ", page(s) = " + pageFilter + ", doc [object ...] = " + doc); }
+    forEachPage(doc, pageMap, function(page, pg) {
 
-        print("DBG-P1: loading page " + pg);
-        var page = doc.loadPage(pg);
+        if (Debug) print("DBG-P1: loading page " + pg);
+        // var page = doc.loadPage(pg);
 
         var pageObj = page.getObject();
-        print("DBG-P2 pageObj=" + pageObj);
+        if (Debug) print("DBG-P2 pageObj=" + pageObj);
 
-var annots = page.getAnnotations(); print("DBG: getAnnotations returned " + annots.length + " annotations");
-        print("DBG-P3 annots=" + annots);
+var annots = page.getAnnotations(); if (Debug) print("DBG: getAnnotations returned " + annots.length + " annotations");
+        if (Debug) print("DBG-P3 annots=" + annots);
 
         if (!annots) {
-            print("DBG-P3a: no annotations on this page");
-            continue;
+            if (Debug) print("DBG-P3a: no annotations on this page");
+            return;
         }
 
-        print("DBG-P4 annots.length=" + annots.length);
+        if (Debug) print("DBG-P4 annots.length=" + annots.length);
 
         // --- MAIN ANNOTATION LOOP ---
 
 for (var j = 0; j < annots.length; j++) {
-            print("DBG-A0: calling page.getAnnot(" + j + ")");
+            if (Debug) print("DBG-A0: calling page.getAnnot(" + j + ")");
     var annotObj = annots[j];
-    print("DBG: annotObj=" + annotObj);
+    if (Debug) print("DBG: annotObj=" + annotObj);
 
             if (!annotObj) {
-                print("DBG-A2 annotObj is null");
-                continue;
+                if (Debug) print("DBG-A2 annotObj is null");
+                return;
             }
 
             var dict = annotObj.getObject();
-            print("DBG-A3 dict=" + dict);
+            if (Debug) print("DBG-A3 dict=" + dict);
 
             if (!subtypeMatches(dict, annotSubtypes)) {
-                print("DBG-A3a: subtype does not match");
-                continue;
+                if (Debug) print("DBG-A3a: subtype does not match");
+                return;
             }
 
             // ---------------- hl2txt MODE ----------------
             if (mode === "hl2txt") {
 
-                print("DBG-A4: hl2txt mode");
+                if (Debug) print("DBG-A4: hl2txt mode");
 
                 var mergedText = outputHl2txtRow(page, pg, j, annotObj, verbose);
-                print("DBG-A5 mergedText=" + mergedText);
+                if (Debug) print("DBG-A5 mergedText=" + mergedText);
 
                 if (!verbose && mergedText != null) {
 
                     if (pokeTxt === true) {
-                        print("DBG-A6 calling setContents");
+                        if (Debug) print("DBG-A6 calling setContents");
                         annotObj.setContents(String(mergedText));
                         annotObj.update();
                         pdfDirty = true;
                     }
                     else if (typeof pokeTxt === "string") {
-                        print("DBG-A7 calling setContents with pokeTxt");
+                        if (Debug) print("DBG-A7 calling setContents with pokeTxt");
                         annotObj.setContents(String(pokeTxt));
                         annotObj.update();
                         pdfDirty = true;
@@ -510,11 +512,11 @@ for (var j = 0; j < annots.length; j++) {
                 }
 
                 total++;
-                continue;
+                return;
             }
 
             // ---------------- NORMAL report MODE ----------------
-            print("DBG-N0: normal report mode");
+            if (Debug) print("DBG-N0: normal report mode");
 
             var subtype  = dict.get("Subtype");
             var rect     = dict.get("Rect");
@@ -538,10 +540,10 @@ for (var j = 0; j < annots.length; j++) {
             total++;
         }
 
-        print("DBG-P5: finished annotation loop for page " + pg);
-    }
+        if (Debug) print("DBG-P5: finished annotation loop for page " + pg);
+    });
 
-    print("DBG-END total=" + total);
+    if (Debug) print("DBG-END total=" + total);
     if (!silent) print("Total matches: " + total);
     txtOut.write("Total matches: " + total + "\n");
 
@@ -662,13 +664,13 @@ above need resolving to types
 /* ------------------------------
    FINAL SAVE
 --------------------------------*/
-if (verbose) print("Debug now at saving")
+if (Debug) print("Debug now at saving")
   // Determine final output filenames
   var finalReport = reportFile || defaultReportFile;
   var finalPdf = outname || defaultOutPdf;
-if (verbose) { print("Resolved finalReport = " + finalReport); print("Resolved finalPdf = " + finalPdf); }
+if (Debug) { print("Resolved finalReport = " + finalReport); print("Resolved finalPdf = " + finalPdf); }
   // Write report file
-if (verbose) print("at final save / close inname= " + inname + " finalPdf= " + finalPdf);
+if (Debug) print("at final save / close inname= " + inname + " finalPdf= " + finalPdf);
 try {
     txtOut.save(finalReport);
     if (!silent) print("Annotation report written to: " + finalReport);
@@ -688,5 +690,5 @@ if (!noSave && pdfDirty) {
     }
 }
 
-if (verbose) print("at final close")
+if (Debug) print("at final close")
 
