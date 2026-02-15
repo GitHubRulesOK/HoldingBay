@@ -10,7 +10,7 @@ See defaults below for use of switches.
 // --- Argument settings --- -m=mode is tested as toLowerCase but -a= is Not (i.e. Strict). Fallback for Subtype is just "Highlight"
 var mode = "report"; var countOnly = false; var annotSubtype = "Highlight"; var annotSubtypes = null; var blockMode = false; var verbose = false;
 var flateSave = false; var Debug = false; var decomSave = false; var firstPage = 1; var lastPage = null; var noSave = false; var outname = null; var pageSpec = null;
-var silent = false; var reportFile = null; var pokeTxt = null; var inname = null; var pdfDirty = false; var totalMatches = 0; var pageFilter = null;
+var silent = false; var reportFile = null; var pokeTxt = null; var inname = null; var pdfDirty = false; var totalMatches = 0; var pageMap = null;
 
 for (var i = 0; i < scriptArgs.length; i++) {
   var arg = scriptArgs[i];
@@ -446,9 +446,9 @@ function outputHl2txtRow(page, pg, j, annotObj, verbose) {
        MAIN
  report / hl2txt
 ----------------*/
-function runReportMode(doc, pageFilter, verbose) {
+function runReportMode(doc, pageMap, verbose) {
     var total = 0;
-    if (Debug) { print("DEBUG: runReportMode mode = " + mode + ", pageCount = " + pageCount + ", page(s) = " + pageFilter + ", doc [object ...] = " + doc); }
+    if (Debug) { print("DEBUG: runReportMode mode = " + mode + ", pageCount = " + pageCount + ", page(s) = " + pageMap + ", doc [object ...] = " + doc); }
     forEachPage(doc, pageMap, function(page, pg) {
 
         if (Debug) print("DBG-P1: loading page " + pg);
@@ -554,42 +554,62 @@ for (var j = 0; j < annots.length; j++) {
    MODE: DELETE
  ANNOTS OR LINKS
 ----------------*/
-function runDeleteMode(doc, pageFilter, itemGetter, itemDeleter, label) {
+function runDeleteMode(doc, pageMap, itemGetter, itemDeleter, label) {
     var removed = 0;
     var perPage = {};
-    forEachPage(doc, function(page, pg) {
-        var pg0 = pg - 1;
-        if (pageFilter && pageFilter.indexOf(pg0) === -1)
-            return;
+
+    forEachPage(doc, pageMap, function(page, pg) {
+
+        if (Debug) print("DBG-P1: delete mode on page " + pg);
+
         var items = itemGetter(page);
+
+        if (Debug) {
+            print("DBG: itemGetter returned " + (items ? items.length : 0));
+        }
+
         if (!items || !items.length)
-            return;
+            return; // skip to next page
+
+        // delete from end to avoid index shift
         for (var i = items.length - 1; i >= 0; i--) {
             try {
                 itemDeleter(page, items[i]);
                 removed++;
-                perPage[pg0] = (perPage[pg0] || 0) + 1;
+                perPage[pg] = (perPage[pg] || 0) + 1;
                 pdfDirty = true;
-            } catch (e) {}
+
+                if (Debug) print("DBG: deleted item " + i + " on page " + pg);
+
+            } catch (e) {
+                if (Debug) print("DBG: delete failed: " + e);
+            }
         }
+
+        if (Debug) print("DBG-P5: finished delete loop for page " + pg);
     });
+
     if (!silent) {
         for (var p in perPage)
             print("Page " + p + ": removed " + perPage[p] + " " + label);
         print("Total " + label + " removed: " + removed);
     }
+
     for (var p in perPage)
         txtOut.write("Page " + p + ": removed " + perPage[p] + " " + label + "\n");
     txtOut.write("Total " + label + " removed: " + removed + "\n");
+
     return removed;
 }
+
 
 /* ---------------
  EXECUTE MODE USE
  FUNCTIONS above
 ----------------*/
 if (mode === "report" || mode === "hl2txt") {
-    runReportMode(doc, pageFilter, verbose);
+    runReportMode(doc, pageMap, verbose);
+
     if (countOnly) {
         if (doc.close) doc.close();
         quit();
@@ -601,7 +621,7 @@ if (mode === "report" || mode === "hl2txt") {
 if (mode === "delannots") {
     runDeleteMode(
         doc,
-        pageFilter,
+        pageMap,
         function(page) {
             var ann = page.getAnnotations();
             if (!ann) return [];
@@ -628,7 +648,7 @@ MODE: DELETE LINKS
 if (mode === "dellinks") {
     runDeleteMode(
         doc,
-        pageFilter,
+        pageMap,
         function(page) {
             return page.getLinks() || [];
         },
@@ -647,13 +667,13 @@ below need resolving to types like above
 if (mode === "delRaw") {
     runDeleteMode(
         doc,
-        pageFilter,
+        pageMap,
         page => getRawObjects(page),   // function
         (page, raw) => raw.delete("Key"),
         "raw objects"
     );
 }
-runDeleteMode(doc, pageFilter,
+runDeleteMode(doc, pageMap,
     page => page.getAnnotations().filter(a => subtype == "Widget"),
     (page, a) => page.deleteAnnotation(a),
     "widgets"
