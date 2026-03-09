@@ -5,11 +5,11 @@ using System.Reflection;
 using System.Text;
 using System.Collections.Generic;
 
-class TryBrotli
+class brEncode
 {
   static void Main(string[] args)
   {
-    if (args.Length < 1) { Console.WriteLine("Usage: TryBrotli input.pdf"); return; }
+    if (args.Length < 1) { Console.WriteLine("Usage: brEncode input.pdf"); return; }
     string input = args[0];
     if (!File.Exists(input)) { Console.WriteLine("Input file not found: " + input); return; }
     string output = Path.Combine(
@@ -127,7 +127,7 @@ if (dict.Contains("/Type") && dict.Contains("/Metadata"))
  continue;
  }
 
-// RULE 1: skip any object that has a dictionary entry /Length2 or /Length3
+// RULE 2: skip any object that has a dictionary entry /Length2 or /Length3
 if (isFontStream)
 {
     // If the dictionary contains /Length2 or /Length3, skip Brotli entirely
@@ -139,7 +139,7 @@ if (isFontStream)
     }
 }
 
-// RULE 2: skip any object that has a Filter dictionary these files should have decompressed candidates
+// RULE 3: skip any object that has a Filter dictionary these files should have decompressed candidates
  if (dict.Contains("/Filter")) {
  CopyOriginalObject(pdf, outPdf, objStart, ref pos);
  continue;
@@ -151,7 +151,7 @@ if (isFontStream)
         continue;
       }
 
-// RULE 3: for isFontStream fontfile ONLY use /Length1 else use normally by replace the /Length ### from return and pad more
+// RULE 4: for isFontStream fontfile ONLY use /Length1 else use normally by replace the /Length ### from return and pad more
 
       // find start of number after /Length (or /Length1)
       int afterLengthWord = lenWordIndex + 7; // "/Length"
@@ -430,3 +430,4 @@ outPdf.Write(endObjBytes, 0, endObjBytes.Length);
     pos = endObj + 6;
   }
 }
+
