@@ -1,0 +1,612 @@
+﻿<html>
+<head>
+<meta http-equiv="x-ua-compatible" content="IE=11">
+<title>Runner</title>
+<HTA:APPLICATION
+  APPLICATIONNAME="Application Runner"
+  SCROLL="yes"
+  SINGLEINSTANCE="yes"
+  BORDER="thin"
+  CAPTION="yes"
+/>
+<style>
+body { background:#111; color:#DDD; font-family:Segoe UI, sans-serif; margin:0; }
+#tabbar { display:flex; background:#222; border-bottom:1px solid #444; }
+.tabButton { padding:3px 6px; cursor:pointer; border-right:2px solid #88D; color:#DDD; font-size:13px; }
+.tabButton:hover { background:#FFF; color:#0D0; }
+.activeTab { background:#06C; color:#FFF; font-weight:bold; border:1px solid #FFF; }
+.panel { display:none; padding:2px 10px; }
+.activePanel { display:block; }
+.headingRow { font-weight:bold; color:#FA0; background:#222; padding-left:5px; border-left:5px solid #FA0; }
+input[type=button], button { background: #444; color: #EEE; border: 1px solid #888;
+    padding: 4px 10px; font-family: Segoe UI, sans-serif; font-size: 12px; cursor: pointer; }
+input[type=file] { font-family: Consolas; font-size: 12px; border: 3px solid #F00; }
+.runBtn { padding:3px 10px; font-size:14px; background:#3A4; color:#FFF; border:none; cursor:pointer; margin-left:6px; border-radius:3px; }
+.runBtn:hover { background:#3C6; }
+.holdBtn { padding:3px 10px; font-size:14px; background:#3A4; color:#FFF; border:none; cursor:pointer; margin-left:6px; border-radius:3px; }
+.holdBtn:hover { background:#3C6; }
+.saveBtn { padding:3px 10px; font-size:14px; background:#3A4; color:#FFF; border:none; cursor:pointer; margin-left:6px; border-radius:3px; }
+.saveBtn:hover { background:#3C6; }
+.fileArea { width: 100%; }
+.fileWarning { background: #D00; color: #FFF; border: 2px solid #F80; border-radius: 4px; font-weight: bold; }
+.filePath { background: #333; color: #0F0; border-radius: 4px; font-family: monospace; word-break: break-all; }
+.fileWrapper { column-span: all; -ms-column-span: all; display: inline-block; }
+.optionsPane { height: calc(100vh - 300px); overflow-y: auto; overflow-x: hidden; margin-bottom: 6px; padding-right: 6px;  width: 100%; }
+.optionsColumns { column-count: 2; width: 200%; }
+.optionsWrap { display: inline-block; width: 100%; }
+.optionRow { width: 48%; float: left; break-inside: avoid; -ms-break-inside: avoid; margin-bottom: 4px; }
+.optLabel { display: inline-block; vertical-align: top; margin-right: 6px; }
+.optControl { display: inline-block; vertical-align: top; }
+.headingRow { width: 100%; font-weight: bold; margin-top: 8px; margin-bottom: 4px; clear: both; }
+.optionsTable { width:100%; border-collapse:collapse; }
+.optionsTable td { padding: 2px 4px; line-height: 1.2; border:1px solid #222; font-size:12px; }
+.outputBox { position: absolute; left: 0; right: 0; bottom: 0; max-height: 60vh; min-height: 20vh;/* enough to show top lines */
+    height: auto; overflow-y: auto; overflow-x: hidden; white-space: pre-wrap; word-wrap: break-word;/* wraps long paths/commands */
+    background: #000; border: 1px solid #333; padding: 6px; font-family: Consolas, monospace; font-size: 11px; margin-top: 8px; }
+.mandatoryCheckbox { opacity:0.5; }
+</style>
+<script language="JScript">
+// ------
+// GLOBAL STATE This can support UTF-8 (perhaps not all?) save files as UTF-8 with BOM
+// ------
+var STATE = {
+    TOPIC_LABELS: {},   // TOPIC1 -> e.g. from ini "Info" or "信息" etc. localisation of wording is there not here
+    TOPIC_LIST: [],     // ["TOPIC1","TOPIC2",...]
+    TOPIC_DATA: {},     // TOPIC1 -> { EXES:{}, SELECTED:"EXE1" }
+    PROFILES: {},       // "TOPIC1.EXE1" -> [ {TYPE,...}, ... ]
+    CURRENT_TOPIC: "",
+    CURRENT_OPTIONS: [],
+    FILE: ""
+};
+// ------
+// UTF-8 reader for process output assuming it is set = "windows-1252"
+// ------
+function readUtf8(exec) {
+    var bin = new ActiveXObject("ADODB.Stream");
+    bin.Type = 1;
+    bin.Open();
+    while (!exec.StdOut.AtEndOfStream) {
+        var chunk = exec.StdOut.Read(1024);
+        var tmp = new ActiveXObject("ADODB.Stream");
+        tmp.Type = 2;
+        tmp.Charset = "windows-1252";
+        tmp.Open();
+        tmp.WriteText(chunk);
+        tmp.Position = 0;
+        tmp.Type = 1;
+        bin.Write(tmp.Read());
+        tmp.Close();
+    }
+    bin.Position = 0;
+    bin.Type = 2;
+    bin.Charset = "utf-8";
+    var text = bin.ReadText();
+    bin.Close();
+    return text;
+}
+// ------
+// Load INI
+// ------
+function loadIni() {
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    var ini = "Runner.ini";
+    if (!fso.FileExists(ini)) return;
+    var s = new ActiveXObject("ADODB.Stream");
+    s.Type = 2;
+    s.Charset = "utf-8";
+    s.Open();
+    s.LoadFromFile(ini);
+    var lines = s.ReadText().split(/\r?\n/);
+    s.Close();
+    var section = "";
+    for (var i=0;i<lines.length;i++) {
+        var line = lines[i];
+        if (!line) continue;
+        line = line.replace(/^\s+|\s+$/g,"");
+        if (!line) continue;
+        if (line.charAt(0)=="[" && line.charAt(line.length-1)=="]") {
+            section = line.substring(1,line.length-1);
+            continue;
+        }
+        var eq = line.indexOf("=");
+        if (eq<0) continue;
+        var key = line.substring(0,eq).replace(/^\s+|\s+$/g,"");
+        var val = line.substring(eq+1);
+        // [TOPICS] section: labels only
+        if (section=="TOPICS") {
+            if (key.match(/^TOPIC[0-9]+$/)) {
+                var label = val.replace(/^\s*"/,"").replace(/"\s*$/,"");
+                STATE.TOPIC_LABELS[key] = label;
+                if (!contains(STATE.TOPIC_LIST, key)) {
+                    STATE.TOPIC_LIST.push(key);
+                }
+            }
+            continue;
+        }
+        // Topic data: [TOPIC1], [TOPIC2]...
+        if (section.match(/^TOPIC[0-9]+$/)) {
+            if (!STATE.TOPIC_DATA[section]) {
+                STATE.TOPIC_DATA[section] = { EXES:{}, SELECTED:"" };
+            }
+            if (key.match(/^EXE[0-9]+$/)) {
+                STATE.TOPIC_DATA[section].EXES[key] = val;
+            } else if (key == section + "_EXE") {
+                STATE.TOPIC_DATA[section].SELECTED = val;
+            }
+            continue;
+        }
+        // EXE-specific: [TOPIC1.EXE1]
+        if (section.match(/^TOPIC[0-9]+\.[A-Z0-9]+$/)) {
+            if (!STATE.PROFILES[section]) STATE.PROFILES[section] = [];
+            var parts = val.split("|");
+            var TYPE = (parts[0]||"").replace(/^\s+|\s+$/g,"");
+            var CHECKED, DESC, SW, V;
+            if (TYPE=="0") {
+                CHECKED = "0";
+                DESC = (parts[1]||"");
+                SW = "";
+                V = "";
+            } else {
+                CHECKED = (parts[1]||"0").replace(/^\s+|\s+$/g,"");
+                DESC = (parts[2]||"");
+                SW = (parts[3]||"");
+                V = (parts[4]||"");
+            }
+            // Detect file placeholders like <In1>, <Out1>, <In2>, etc.
+var isFile = false;
+var isOutput = false;
+if (V && V.match(/^<.*>$/)) {
+    // Detect output placeholders like <Out1>, <Out2>, etc.
+    if (V.indexOf("<Out") === 0) {
+        isOutput = true;
+        V = "";   // user will type this manually
+    // Detect input placeholders like <In1>, <In2>, etc.
+    } else if (V.indexOf("<In") === 0) {
+        isFile = true;  // input file picker
+        V = "";         // filled by file picker
+    } else {
+        // fallback: treat as input file
+        isFile = true;
+        V = "";
+    }
+}
+STATE.PROFILES[section].push({
+    KEY: key,
+    TYPE: TYPE,
+    CHECKED: CHECKED,
+    DESC: DESC,
+    SW: SW,
+    VAL: V,
+    IS_FILE: isFile,
+    IS_OUTPUT: isOutput
+});
+        }
+    }
+}
+function contains(arr, v) {
+    for (var i=0;i<arr.length;i++) if (arr[i]==v) return true;
+    return false;
+}
+// ------
+// Build tabs and panels dynamically
+// ------
+function buildUI() {
+    var tabbar = document.getElementById("tabbar");
+    var main   = document.getElementById("main");
+    for (var i=0;i<STATE.TOPIC_LIST.length;i++) {
+        var topicKey = STATE.TOPIC_LIST[i];   // e.g. "TOPIC1"
+        var label    = STATE.TOPIC_LABELS[topicKey] || topicKey;
+        // Tab
+        var tab = document.createElement("div");
+        tab.className = "tabButton";
+        tab.id = "TAB_" + topicKey;
+        tab.innerText = label;
+        tab.onclick = (function(tk){
+            return function(){ showTopic(tk); };
+        })(topicKey);
+        tabbar.appendChild(tab);
+        // Panel
+        var panel = document.createElement("div");
+        panel.className = "panel";
+        panel.id = "PANEL_" + topicKey;
+        var html = "";
+        html += '<div id="exeRow_' + topicKey + '"></div>';
+        html += '<div id="fileArea_' + topicKey + '" class="fileArea"></div>';
+        html += '<div class="optionsPane">';
+        html += '  <div class="optionsColumns">';
+        html += '    <div id="optionsWrap_' + topicKey + '" class="optionsWrap">';
+        html += '      <table id="optionsTable_' + topicKey + '" class="optionsTable"></table>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '</div>';
+        html += '<div id="output_' + topicKey + '" class="outputBox"></div>';
+        panel.innerHTML = html;
+        main.appendChild(panel);
+    }
+}
+// ------
+// Show topic
+// ------
+function showTopic(topicKey) {
+    STATE.CURRENT_TOPIC = topicKey;
+    var tabs = document.getElementsByClassName("tabButton");
+    for (var i=0;i<tabs.length;i++) tabs[i].classList.remove("activeTab");
+    var t = document.getElementById("TAB_" + topicKey);
+    if (t) t.classList.add("activeTab");
+    var panels = document.getElementsByClassName("panel");
+    for (var j=0;j<panels.length;j++) panels[j].classList.remove("activePanel");
+    var p = document.getElementById("PANEL_" + topicKey);
+    if (p) p.classList.add("activePanel");
+    loadTopic(topicKey);
+}
+// ------
+// Load topic data into CURRENT_OPTIONS
+// ------
+function loadTopic(topicKey) {
+    var topic = STATE.TOPIC_DATA[topicKey];
+    if (!topic) return;
+    var selectedExe = topic.SELECTED;
+    var sectionName = topicKey + "." + selectedExe;
+    STATE.CURRENT_OPTIONS = STATE.PROFILES[sectionName] || [];
+    renderExeButtons(topicKey);
+    renderOptions(topicKey);
+//alert("fileArea exists? " + document.getElementById("fileArea_" + topicKey));
+updateGlobalFileDisplay(topicKey);
+    // Initialize file display boxes for all file placeholders
+    for (var i = 0; i < STATE.CURRENT_OPTIONS.length; i++) {
+        var o = STATE.CURRENT_OPTIONS[i];
+        if (o.IS_FILE) {
+            // Push global file into the option (if any)
+            if (STATE.FILE) { o.VAL = STATE.FILE; }
+            updateFileDisplay(i);
+            break;
+        }
+    }
+}
+// ------
+// Render EXE buttons
+// ------
+function renderExeButtons(topicKey) {
+    var row = document.getElementById("exeRow_" + topicKey);
+    if (!row) return;
+    row.innerHTML = "";
+    var topic = STATE.TOPIC_DATA[topicKey];
+    if (!topic) return;
+    for (var exe in topic.EXES) {
+        var def = topic.EXES[exe]; // "Name"|"Path"
+        var parts = def.split("|");
+        var label = (parts[0]||"").replace(/^\s*"/,"").replace(/"\s*$/,"");
+        var btn = document.createElement("button");
+        btn.innerText = label || exe;
+        if (topic.SELECTED == exe) btn.className = "activeTab";
+        btn.onclick = (function(tk, ex){
+            return function(){
+                STATE.TOPIC_DATA[tk].SELECTED = ex;
+                loadTopic(tk);
+            };
+        })(topicKey, exe);
+        row.appendChild(btn);
+    }
+    // RUN button at end
+    var runBtn = document.createElement("button");
+    runBtn.innerText = "Run";
+    runBtn.className = "runBtn";
+    runBtn.onclick = function () { runTopic(topicKey); };
+    row.appendChild(runBtn);
+// HOLD button (append mode)
+var holdBtn = document.createElement("button");
+holdBtn.innerText = "Hold";
+holdBtn.className = "holdBtn";
+holdBtn.onclick = function () { holdOutput(topicKey); };
+row.appendChild(holdBtn);
+// SAVE button (open in Notepad)
+var saveBtn = document.createElement("button");
+saveBtn.innerText = "Save";
+saveBtn.className = "saveBtn";
+saveBtn.onclick = function () { saveOutput(topicKey); };
+row.appendChild(saveBtn);
+}
+// ------
+// Render options table
+// ------
+function renderOptions(topicKey) {
+    var wrap = document.getElementById("optionsWrap_" + topicKey);
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    var opts = STATE.CURRENT_OPTIONS;
+    for (var i = 0; i < opts.length; i++) {
+        var o = opts[i];
+        // HEADINGS (TYPE 0)
+        if (o.TYPE == "0") {
+            var h = document.createElement("div");
+            h.className = "headingRow";
+            h.innerText = o.DESC;
+            wrap.appendChild(h);
+            continue;
+        }
+        var isMandatory = (o.TYPE == "M");
+        // ROW CONTAINER
+        var row = document.createElement("div");
+        row.className = "optionRow";
+        // LEFT SIDE (checkbox + label)
+        var c1 = document.createElement("span");
+        c1.className = "optLabel";
+        var cbHtml;
+        if (isMandatory) {
+            cbHtml = '<input type="checkbox" checked disabled class="mandatoryCheckbox">';
+        } else {
+            cbHtml = '<input type="checkbox" ' +
+                     (o.CHECKED == "1" ? "checked " : "") +
+                     'onclick="toggleChecked(' + i + ')">';
+        }
+        var label = cbHtml + " " + o.DESC;
+        if (o.SW) label += ' <span style="color:#888">(' + o.SW + ')</span>';
+        c1.innerHTML = label;
+        // RIGHT SIDE (input control)
+        var c2 = document.createElement("span");
+        c2.className = "optControl";
+        if (o.IS_FILE) {
+            c2.innerHTML =
+                '<input type="file" onchange="handleFileSelect(this,' + i + ',\'' + topicKey + '\');">';
+        } else if (o.IS_OUTPUT) {
+            // OUTPUT FILE TEXT BOX
+            c2.innerHTML =
+                '<input type="text" class="outfileBox" placeholder="Output file" ' +
+                'onchange="setValue(' + i + ',this.value)">';
+        } else if (o.VAL !== "") {
+            c2.innerHTML =
+                '<input type="text" value="' + o.VAL +
+                '" onchange="setValue(' + i + ',this.value)">';
+        } else {
+            c2.innerHTML = "";
+        }
+        // ASSEMBLE ROW
+        row.appendChild(c1);
+        row.appendChild(c2);
+        wrap.appendChild(row);
+    }
+}
+function handleFileSelect(input, i, topicKey) {
+    var v = input.value;
+    // Ignore empty or bogus paths
+    if (!v || v === "" || v === "C:\\fakepath\\") {
+        return;
+    }
+    // Clean quotes
+    v = v.replace(/^\"(.*)\"$/, "$1");
+    STATE.FILE = v;
+    setValue(i, v);
+    updateGlobalFileDisplay(topicKey);
+}
+function toggleChecked(i) {
+    STATE.CURRENT_OPTIONS[i].CHECKED =
+        (STATE.CURRENT_OPTIONS[i].CHECKED=="1" ? "0" : "1");
+}
+function setValue(i,v) {
+    STATE.CURRENT_OPTIONS[i].VAL = v;
+}
+function updateGlobalFileDisplay(topicKey) {
+    var area = document.getElementById("fileArea_" + topicKey);
+    if (!area) return;
+    if (!STATE.FILE) {
+        area.innerHTML = '<div class="fileWarning">Please select a file</div>';
+    } else {
+        area.innerHTML = '<div class="filePath">' + STATE.FILE + '</div>';
+    }
+}
+// ------
+// CHECK HTA command line
+// ------
+function getLaunchFile() {
+    var qs = document.location.search;  // e.g. "?file=C:\test\file.ext"
+    if (!qs || qs.length < 2) return "";
+    // Remove leading '?'
+    qs = qs.substring(1);
+    // Split into key=value pairs
+    var parts = qs.split("&");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split("=");
+        if (kv.length == 2 && kv[0].toLowerCase() == "file") {
+            return decodeURIComponent(kv[1]).replace(/^"(.*)"$/, "$1");
+        }
+    }
+    return "";
+}
+function updateFileDisplay(i) {
+    var o = STATE.CURRENT_OPTIONS[i];
+    var disp = document.getElementById("fileDisplay_" + i);
+    if (!disp) return;
+    if (o.VAL) {
+        disp.innerText = 'Current default file: "' + o.VAL + '"';
+    } else {
+        disp.innerText = 'No default file selected — please choose a work file';
+    }
+}
+// ------
+// Build command line
+// ------
+function buildCommand(topicKey) {
+    var topic = STATE.TOPIC_DATA[topicKey];
+    if (!topic) return "";
+    var exeDef = topic.EXES[topic.SELECTED];
+    if (!exeDef) return "";
+    var parts = exeDef.split("|");
+    var exePath = (parts[1]||"").replace(/^\s*"/,"").replace(/"\s*$/,"");
+    var items = [];
+    for (var i=0;i<STATE.CURRENT_OPTIONS.length;i++) {
+        var o = STATE.CURRENT_OPTIONS[i];
+        if (o.TYPE=="0") continue;
+        var include = false;
+        var order;
+        if (o.TYPE=="M") {
+            include = true;
+            order = 1;
+        } else {
+            include = (o.CHECKED=="1");
+            order = parseInt(o.TYPE,10);
+        }
+        if (!include) continue;
+        var text = "";
+// If this option is a file placeholder (set earlier during INI load)
+// INPUT FILES
+if (o.IS_FILE) {
+    if (!o.VAL) continue;   // INPUT GUARD STAYS
+
+    var sw = o.SW || "";
+    var needsJoin = (sw && sw.charAt(sw.length - 1) === "=");
+
+    if (needsJoin) {
+        text = sw + '"' + o.VAL + '"';   // -i="path"
+    } else {
+        text = sw + ' "' + o.VAL + '"';  // original behavior
+    }
+}
+
+// OUTPUT FILES
+else if (o.IS_OUTPUT) {
+    var sw = o.SW || "";
+    var clean = (o.VAL || "").replace(/^"+|"+$/g, "");
+    var needsJoin = (sw && sw.charAt(sw.length - 1) === "=");
+
+    if (needsJoin) {
+        text = sw + '"' + clean + '"';   // -o="path"
+    } else {
+        text = sw + ' "' + clean + '"';  // original behavior
+    }
+}
+
+// OTHER OPTIONS
+else {
+    var sw  = o.SW || "";
+    var val = o.VAL || "";
+
+    if (sw && val) {
+
+        // HTA‑SAFE: check if last character is '='
+        var join = (sw.length > 0 && sw.charAt(sw.length - 1) === "=");
+
+        if (join) {
+            text = sw + val;        // e.g. -t=foo
+        } else {
+            text = sw + " " + val;  // original behavior
+        }
+    }
+    else if (sw) {
+        text = sw;
+    }
+    else if (val) {
+        text = val;
+    }
+}
+
+        items.push({ order:order, text:text });
+    }
+// Only use legacy STATE.FILE if no file placeholders exist
+var hasFilePlaceholder = STATE.CURRENT_OPTIONS.some(function(o) {
+    return o.IS_FILE;
+});
+if (!hasFilePlaceholder && STATE.FILE) {
+    items.push({ order:50, text:'"' + STATE.FILE + '"' });
+}
+    items.sort(function(a,b){ return a.order - b.order; });
+    var cmd = '"' + exePath + '"';
+    for (var j=0;j<items.length;j++) cmd += " " + items[j].text;
+    return cmd;
+}
+// ------
+// Run topic
+// ------
+var HOLD_BUFFER = {};
+function runTopic(topicKey) {
+    if (!STATE.FILE) {
+        alert("Pick a file first.");
+        return;
+    }
+    var cmd = buildCommand(topicKey);
+//alert(cmd);
+    if (cmd.indexOf('-o ""') !== -1) {
+        alert("Output file is required.");
+        return;
+    }
+    var out = document.getElementById("output_" + topicKey);
+    if (!out) return;
+    out.innerText = "Running:\r\n" + cmd + "\r\n\r\n";
+    try {
+        var shell = new ActiveXObject("WScript.Shell");
+        var exec = shell.Exec(cmd);
+        var text = readUtf8(exec);
+        out.innerText = "Running:\r\n" + cmd + "\r\n\r\n" + text;
+    }
+    catch (e) {
+        alert("Cannot run the selected tool.\n\n" +
+              "The executable was not found:\n" + cmd + "\n\n" +
+              "Error: " + e.message);
+        out.innerText += "\r\n[ERROR] " + e.message;
+    }
+}
+function holdOutput(topicKey) {
+    var out = document.getElementById("output_" + topicKey);
+    if (!out) return;
+    var text = out.innerText || out.textContent;
+    if (!text.trim()) return;
+    if (!HOLD_BUFFER[topicKey]) {
+        HOLD_BUFFER[topicKey] = "";
+    } else {
+        // Add separator between holds
+        HOLD_BUFFER[topicKey] += "\nEND --- RUN --- START\n\n";
+    }
+    HOLD_BUFFER[topicKey] += text + "\n";
+}
+function saveOutput(topicKey) {
+    var text = HOLD_BUFFER[topicKey];
+    if (!text || !text.trim()) {
+        alert("Nothing held for this topic.");
+        return;
+    }
+    try {
+        var fso = new ActiveXObject("Scripting.FileSystemObject");
+        var temp = fso.GetSpecialFolder(2);
+        var filePath = temp + "\\hta_report_" + topicKey + ".txt";
+        var stream = new ActiveXObject("ADODB.Stream");
+        stream.Type = 2;
+        stream.Charset = "utf-8";
+        stream.Open();
+        stream.WriteText(text);
+        stream.SaveToFile(filePath, 2);
+        stream.Close();
+        var shell = new ActiveXObject("WScript.Shell");
+        shell.Run("notepad.exe \"" + filePath + "\"");
+        // IMPORTANT: clear buffer after saving
+        HOLD_BUFFER[topicKey] = "";
+    } catch (e) {
+        alert("Unable to save report:\n" + e.message);
+    }
+}
+// ------
+// Init
+// ------
+function init() {
+    // 1. Set window size FIRST
+    var W = 900, H = 600; window.resizeTo(W, H);
+    window.moveTo( (screen.availWidth - W) / 3, (screen.availHeight - H) / 3 );
+    // 2. Load INI definitions and Build the static UI (tabs, panels, containers)
+    loadIni(); buildUI();
+    // 3. Read launch file (if provided)
+    var launchFile = getLaunchFile(); if (launchFile) STATE.FILE = launchFile;
+    // 4. Show first topic (this creates the visible panel)
+    if (STATE.TOPIC_LIST.length > 0) showTopic(STATE.TOPIC_LIST[0]);
+    // 5. Autofill ONLY the first file placeholder (<In1>)
+    if (launchFile) {
+        for (var i = 0; i < STATE.CURRENT_OPTIONS.length; i++) {
+            var o = STATE.CURRENT_OPTIONS[i];
+            if (o.IS_FILE) { o.VAL = launchFile; updateFileDisplay(i); break; }
+        }
+    }
+}
+</script>
+</head>
+<body onload="init()">
+<div id="tabbar"></div>
+<div id="main"></div>
+</body>
+</html>
